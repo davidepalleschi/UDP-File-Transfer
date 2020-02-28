@@ -26,6 +26,7 @@
 #define NOT_ACCEPTABLE 406
 #define SERVICE_UNAVAILABLE 503
 #define ADDRESS "127.0.0.1"
+#define PAYLOAD 1024
 
 #define fflush(stdin) while(getchar()!='\n'){}
 
@@ -42,6 +43,8 @@ int main()
 	char filename[NAME_LEN];
 	int file_len;
 	char **file_buffer;
+	int num_pkt;
+	int fd;
 
 	//Create Socket
 	socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -231,14 +234,30 @@ get_insert:	// preparo il buffer in trasmissione
 
 			file_len = atoi(buffer);
 			file_buffer = (char **) malloc(file_len * sizeof(char *));
+			if (file_buffer == NULL){
+				printf("Out of memory. (malloc error)\n");
+				exit(-1);
+			}
 
+			//calcolo num_packet
+			num_pkt = ceil((file_len/PAYLOAD)) + 1;
+			for (int i = 0; i<num_pkt; i++){
+				file_buffer[i] = (char *) malloc(PAYLOAD * sizeof(char));
+				if (file_buffer[i] == NULL){
+					printf("Out of memory. (malloc error)\n");
+					exit(-1);
+				}
+			}
+
+			//creazione file
+			printf("Creating file %s...\n", filename);
+			fd = open(filename, O_CREAT | O_RDWR | O_TRUNC, 0666);
+			if (fd == -1){
+				printf("open() error while creating file\n");
+				exit(-1);
+			}
 			
-
-
-
-
-
-			
+			//SONO ARRIVATO QUI 18:35 28/02/2020
 
 			
 
