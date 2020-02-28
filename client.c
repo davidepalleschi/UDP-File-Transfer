@@ -26,6 +26,8 @@
 #define SERVICE_UNAVAILABLE 503
 #define ADDRESS "127.0.0.1"
 
+#define fflush(stdin) while(getchar()!='\n'){}
+
 
 int main() 
 { 
@@ -40,6 +42,7 @@ int main()
 	socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (socket_fd == -1){
 		printf("Error: cannot create socket. %s\n", strerror(errno));
+		exit(-1);
 	}
 	else{
 		printf("Socket created succesfully.\n");
@@ -54,15 +57,131 @@ int main()
 	server_addr.sin_addr.s_addr = inet_addr(ADDRESS); 
 	server_addr.sin_port = htons(PORT);
    
+// per provare la funzione chat scommenta l'istruzione successiva
 //goto prova_davide;
 
-	
+	//pulizia buffer di messaggio
+	bzero(buffer, BUFFER_SIZE);
+	ret = sendto(socket_fd, buffer, sizeof(buffer), 0, (SA *)&server_addr, server_addr_len);
+	if (ret == -1){
+		printf("sendto() error while sending welcome packet.\n");
+		exit(-1);
+	}
+	printf("INSERT A COMMAND:\n"
+			"- exit\n"
+			"- list\n"
+			"- get\n"
+			"- put\n");
+
+	//preparo il buffer
+	bzero(buffer, BUFFER_SIZE);
+	//ricevo la nuova porta per la connessione dal server
+	ret = recvfrom(socket_fd, buffer, sizeof(buffer), 0, (SA *) &server_addr, &server_addr_len);
+	if (ret == -1){
+		printf("recvfrom() error in waiting for new port from server.\n");
+		exit(-1);
+	}
+	// chiudo la connessione di accettazione tramite la porta di benvenuto
+	close(socket_fd);
+
+	int response = atoi(buffer);
+	if (response == SERVICE_UNAVAILABLE){
+		printf("Server is out of service.\n");
+		exit(-1);
+	}
+
+	/* creazione della nuova socket */
+
+	socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	server_addr_len = sizeof(server_addr);
+	if (socket_fd == -1){
+		printf("Cannot create the socket: %s", strerror(errno));
+		exit(-1);
+	}else {
+		printf("Socket created succesfully.\n");
+	}
+
+	bzero(&server_addr, server_addr_len);
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	server_addr.sin_port = htons(response);
+
+	/* corpo del client */
+
+	while (1) {
+
+		//preaparo l'area di comando
+		bzero(cmd, BUFFER_SIZE);
+
+		//ottengo la stringa dell'utente clien
+		fgets(cmd, BUFFER_SIZE, stdin);
+		fflush(stdin);
+
+		/* EXIT COMMAND */
+		if (strcmp("exit", cmd) == 0){
+			printf("Client is closing connection...\n");
+			ret = sendto(socket_fd, cmd, sizeof(cmd), 0, (SA *) &server_addr, server_addr_len);
+			if (ret == -1){
+				printf("sendto() error while trying to exit connection.\n");
+				exit(-1);
+			}
+			close(socket_fd);
+			printf("Client disconnected.\n");
+			exit(0);
+		} else		
+
+		/* LIST COMMAND */
+
+		if (strcmp("list", cmd) == 0){
+			ret = sendto(socket_fd, cmd, sizeof(cmd), 0, (SA *) &server_addr, server_addr_len);
+			if (ret == -1){
+				printf("sendto() error while sending list command.\n");
+				exit(-1);
+			}
+list:		// preparo il buffer in ricezione
+			bzero(buffer, BUFFER_SIZE);
+			ret = recvfrom(socket_fd, buffer, sizeof(buffer), 0, (SA *) &server_addr, &server_addr_len);
+			if (ret == -1){
+				if (errno == EAGAIN) goto list;
+				else {
+					printf("recvfrom() error while receiving list from server.\n");
+					exit(-1);
+				}
+			}
+			if (atoi(buffer) == SERVICE_UNAVAILABLE){
+				printf("Server has shutdown.\n");
+				exit(-1);
+			}
+
+			printf("List of available files:\n%s\n", buffer);
+		}
+
+		/* GET COMMAND */
+
+		/* PUT COMMAND */
+		
+
+
+	}
+
+
+
+
+
+
+
+
 
 
 
 
 
     
+	
+	
+	
+	
+	
 	return 0;
 
 	if (0){
@@ -72,6 +191,7 @@ int main()
 		sendto(socket_fd,cmd,sizeof(cmd),0, (SA*) & server_addr,server_addr_len); 
 		recvfrom(socket_fd, (char *) buffer, sizeof(buffer), 0, (SA *) &server_addr, &server_addr_len);
 		printf("%s",buffer);
+		close(socket_fd);
 		return 0;
 		/* ************************* */
 	}
