@@ -32,8 +32,14 @@
 /* defines */
 #define PORT 8080
 #define SA struct sockaddr
-#define MAX_CLIENTS 50
+#define MAX_CLIENTS 3
 #define BUFFER_SIZE 50
+#define NOT_FOUND 404
+#define BAD_REQUEST 400
+#define NOT_ACCEPTABLE 406
+#define OK 200
+#define SERVICE_UNAVAILABLE 503
+
 
 /* nuovi tipi */
 
@@ -107,11 +113,14 @@ int main(int argc, char **argv){
         //ciò che manda il client
         //printf("%s\n", buffer);
 
+printf("number of clients = %d", num_client);
         if(num_client >= MAX_CLIENTS){
             num_client --;
             printf("Numero limite di clients superato.\n");
             bzero(buffer, BUFFER_SIZE);
-            //SIAMO ARRIVATI QUI 18:46 27/02/2020
+            sprintf(buffer, "%d", SERVICE_UNAVAILABLE);
+            if (sendto(socket_fd, buffer, BUFFER_SIZE, 0, (SA *) &client_addr, len) == -1)
+                printf("sendto() error %d: %s", SERVICE_UNAVAILABLE, strerror(errno));
         }
 
     }
