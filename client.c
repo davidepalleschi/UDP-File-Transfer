@@ -1,51 +1,81 @@
-#include <netdb.h> 
-#include <stdio.h> 
-#include <stdlib.h> 
-#include <string.h> 
-#include <sys/socket.h> 
-#include <unistd.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include<netdb.h>
+#include<string.h>
+#include<stdlib.h>
+#include<stdio.h>
+#include<netinet/in.h>
+#include<sys/types.h>
+#include<netdb.h>
+#include<unistd.h>
+#include<arpa/inet.h>
+#include<sys/socket.h>
+#include<unistd.h>
+#include<fcntl.h>
+#include<math.h>
+#include<sys/mman.h>
+#include<sys/time.h>
+#include<errno.h>
+#include<pthread.h>
 
 #define PORT 1024 
-#define SA struct sockaddr 
-
+#define SA struct sockaddr
+#define BUFFER_SIZE 50
+#define OK 200
+#define BAD_REQUEST 400
+#define NOT_FOUND 404
+#define NOT_ACCEPTABLE 406
+#define SERVICE_UNAVAILABLE 503
+#define ADDRESS "127.0.0.1"
 
 
 int main() 
 { 
-	int sockfd, msg_rec, len; 
+	int socket_fd, msg_rec, len; 
 	struct sockaddr_in server_addr; 
-	char buffer[20];
-	char cmd[20];
+	char buffer[BUFFER_SIZE];
+	char cmd[BUFFER_SIZE];
+	int server_addr_len;
+	int ret;	//variabile per il controllo dei return values
 
 	//Create Socket
-	sockfd = socket(AF_INET, SOCK_DGRAM, 0);  
+	socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (socket_fd == -1){
+		printf("Error: cannot create socket. %s\n", strerror(errno));
+	}
+	else{
+		printf("Socket created succesfully.\n");
+	}
 
-	// assign IP, PORT 
-	bzero(&server_addr, sizeof(server_addr));
+	server_addr_len = sizeof(server_addr);
+
+	// assign IP, PORT
+
+	bzero(&server_addr, server_addr_len);
 	server_addr.sin_family = AF_INET; 
-	server_addr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
-	server_addr.sin_port = htons(PORT); 
+	server_addr.sin_addr.s_addr = inet_addr(ADDRESS); 
+	server_addr.sin_port = htons(PORT);
    
+//goto prova_davide;
+
+	
 
 
-	// function for chat 
-	len = sizeof(server_addr);
-	scanf("%s",cmd);
-	sendto(sockfd,cmd,sizeof(cmd),0, (SA*) & server_addr,sizeof(server_addr)); 
-	recvfrom(sockfd, (char *) buffer, sizeof(buffer), 0, (SA *) &server_addr, &len);
-	printf("%s",buffer);
 
-	/*
-    len = sizeof(server_addr);
 
-	bzero(&buffer,sizeof(buffer));
-	msg_rec = recvfrom(sockfd, (char *)buffer, sizeof(buffer),  0 , ( SA*)  &server_addr, &len);  
 
-	printf("%s\n",buffer);
-*/
-    return 0;
+    
+	return 0;
+
+	if (0){
+		/* *** FUNZIONE PER CHAT *** */ 
+	prova_davide:
+		scanf("%s",cmd);
+		sendto(socket_fd,cmd,sizeof(cmd),0, (SA*) & server_addr,server_addr_len); 
+		recvfrom(socket_fd, (char *) buffer, sizeof(buffer), 0, (SA *) &server_addr, &server_addr_len);
+		printf("%s",buffer);
+		return 0;
+		/* ************************* */
+	}
+	
 }
 
 
