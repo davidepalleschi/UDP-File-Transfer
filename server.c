@@ -111,7 +111,7 @@ int main(int argc, char **argv){
         }
 
         //ciò che manda il client
-        //printf("%s\n", buffer);
+        printf("%s\n", buffer);
 
 printf("number of clients = %d", num_client);
         if(num_client >= MAX_CLIENTS){
