@@ -32,7 +32,7 @@
 /* defines */
 #define PORT 1024
 #define SA struct sockaddr
-#define MAX_CLIENTS 3
+#define MAX_CLIENTS 20
 #define BUFFER_SIZE 50
 #define NOT_FOUND 404
 #define BAD_REQUEST 400
@@ -84,7 +84,7 @@ int main(int argc, char **argv){
 
     pid_t child_pids[MAX_CLIENTS];
     pid_t parent_pid = getpid();
-    struct sockaddr_in server_addr, client_addr;
+    struct sockaddr_in  client_addr;
     int msgrcv, len;
     char buffer[BUFFER_SIZE];
     struct sigaction act;
@@ -145,7 +145,15 @@ int main(int argc, char **argv){
             }
             if(pid==0){
                 //gestione segnali TODO
-                socket_fd=create_socket(client_port);
+                int socket_fd_child=create_socket(client_port);
+                bzero(buffer,BUFFER_SIZE);
+                recvfrom(socket_fd_child, (char *) buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
+                if(strncmp("list", buffer, strlen("list")) == 0){
+                    sendto(socket_fd_child, "Poi te la mando", 15 , 0, (SA *) &client_addr, len);
+                }
+                printf("Ricevo nel figlio: %s",buffer);
+                
+
             }
 
 
