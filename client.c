@@ -19,6 +19,7 @@
 #define PORT 1024 
 #define SA struct sockaddr
 #define BUFFER_SIZE 50
+#define NAME_LEN 128
 #define OK 200
 #define BAD_REQUEST 400
 #define NOT_FOUND 404
@@ -37,6 +38,10 @@ int main()
 	char cmd[BUFFER_SIZE];
 	int server_addr_len;
 	int ret;	//variabile per il controllo dei return values
+	int filename_len;
+	char filename[NAME_LEN];
+	int file_len;
+	char **file_buffer;
 
 	//Create Socket
 	socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -154,9 +159,91 @@ list:		// preparo il buffer in ricezione
 			}
 
 			printf("List of available files:\n%s\n", buffer);
-		}
+		}else 
 
 		/* GET COMMAND */
+
+		if (strcmp("get", cmd) == 0){
+			printf("sending get command to server.\n");
+			ret = sendto(socket_fd, cmd, sizeof(cmd), 0, (SA *) &server_addr, server_addr_len);
+			if (ret == -1){
+				printf("sendto() error while sending get command to server.\n");
+				exit(-1);
+			}
+download:
+			//preparo il buffer in ricezione
+			bzero(buffer, BUFFER_SIZE);
+			//ricevo la lista dei file scaricabili
+			ret = recvfrom(socket_fd, buffer, BUFFER_SIZE, 0, (SA *) &server_addr, &server_addr_len);
+			if (ret == -1){
+				if (errno == EAGAIN) goto download;
+				else {
+					printf("recvfrom() error while receiving download informations from server.\n");
+					exit(-1);
+				}
+			}
+
+			if (atoi(buffer) == SERVICE_UNAVAILABLE){
+				printf("Server has shutdown.\n");
+				exit(-1);
+			}
+
+			printf("Downloading is allowed.\n");
+			//stampa della lista di file disponibili
+			printf("Available files:\n%s\n", buffer);
+
+get_insert:	// preparo il buffer in trasmissione
+			bzero(cmd, BUFFER_SIZE);
+			printf("Insert the name of file to be downloaded...\n");
+			scanf("%s", cmd);
+
+			filename_len = strlen(cmd);
+			if (cmd[filename_len - 1] == '\n') cmd[filename_len - 1] = '\0';
+			strcpy(filename, cmd);
+
+			// invio la richiesta di download del file
+			ret = sendto(socket_fd, cmd, sizeof(cmd), 0, (SA *) &server_addr, server_addr_len);
+			if (ret == -1){
+				printf("sendto() error while sending filename to be downloaded.\n");
+				exit(-1);
+			}
+
+			// ricevo un feedback sulla correttezza del nome del file da scaricare
+			bzero(buffer, BUFFER_SIZE);
+			ret = recvfrom(socket_fd, buffer, BUFFER_SIZE, 0, (SA *) &server_addr, &server_addr_len);
+			if (ret == -1){
+				printf("recvfrom() error while receiving file name feedback.\n");
+				exit(-1);
+			}
+
+			if (atoi(buffer) == NOT_FOUND) goto get_insert;
+
+			//ricezione della lunghezza del file
+			bzero(buffer, BUFFER_SIZE);
+			ret = recvfrom(socket_fd, buffer, BUFFER_SIZE, 0, (SA *) &server_addr, &server_addr_len);
+			if (ret == -1){
+				printf("recvfrom() error while receiving file length");
+				exit(-1);
+			}
+
+			// allocazione dinamica per la ricezione del file
+			// verra allocata tanta memoria quanta indicata dalla lunghezza del file
+
+			file_len = atoi(buffer);
+			file_buffer = (char **) malloc(file_len * sizeof(char *));
+
+			
+
+
+
+
+
+			
+
+			
+
+
+		}
 
 		/* PUT COMMAND */
 		

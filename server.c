@@ -121,7 +121,6 @@ int main(int argc, char **argv){
         //ciò che manda il client
         printf("%s\n", buffer);
 
-
         if(num_client >= MAX_CLIENTS){
             //num_client --;
             printf("Numero limite di clients superato.\n");
