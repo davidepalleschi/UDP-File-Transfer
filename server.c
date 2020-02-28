@@ -146,12 +146,17 @@ int main(int argc, char **argv){
             if(pid==0){
                 //gestione segnali TODO
                 int socket_fd_child=create_socket(client_port);
+                
+                while (1)
+                {
+                
+                
                 bzero(buffer,BUFFER_SIZE);
                 recvfrom(socket_fd_child, (char *) buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
                 if(strncmp("list", buffer, strlen("list")) == 0){
                     sendto(socket_fd_child, "Poi te la mando", 15 , 0, (SA *) &client_addr, len);
                 }
-                printf("Ricevo nel figlio: %s",buffer);
+                }
                 
 
             }

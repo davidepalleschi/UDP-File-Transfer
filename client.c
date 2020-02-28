@@ -114,8 +114,8 @@ int main()
 		bzero(cmd, BUFFER_SIZE);
 
 		//ottengo la stringa dell'utente clien
-		fgets(cmd, BUFFER_SIZE, stdin);
-		fflush(stdin);
+		
+		scanf("%s",cmd);
 
 		/* EXIT COMMAND */
 		if (strcmp("exit", cmd) == 0){
