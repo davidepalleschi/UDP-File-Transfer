@@ -50,6 +50,33 @@ int socket_fd;
 /* dichiarazione funzioni */
 void interrupt_handler(int, siginfo_t *, void *);
 
+int create_socket(int s_port){
+    struct sockaddr_in server_addr;
+    //creazione socket
+    socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (socket_fd == -1){
+        printf("Socket creation failed.\n");
+    }else {
+        printf("Socket created succesfully.\n");
+    }
+    //flush della memoria per la struttura della socket
+    bzero(&server_addr, sizeof(server_addr));
+
+    //assegnazione di indirizzo IP e porta della socket lato server
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_addr.sin_port = htons(s_port);
+
+    //binding
+    if (bind(socket_fd, (SA *) (&server_addr), sizeof(server_addr)) == -1){
+        printf("Binding failed.\n");
+    }else{
+        printf("Binding success.√\n");
+    }
+    return socket_fd;
+}
+
+
 
 int main(int argc, char **argv){
 
@@ -74,27 +101,7 @@ int main(int argc, char **argv){
 
     /* Inizializzazione socket */
 
-    //creazione socket
-    socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (socket_fd == -1){
-        printf("Socket creation failed.\n");
-    }else {
-        printf("Socket created succesfully.\n");
-    }
-    //flush della memoria per la struttura della socket
-    bzero(&server_addr, sizeof(server_addr));
-
-    //assegnazione di indirizzo IP e porta della socket lato server
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    server_addr.sin_port = htons(PORT);
-
-    //binding
-    if (bind(socket_fd, (SA *) (&server_addr), sizeof(server_addr)) == -1){
-        printf("Binding failed.\n");
-    }else{
-        printf("Binding success.√\n");
-    }
+    socket_fd=create_socket(PORT);
 
     while (1) {
         //preparo il buffer del messaggio da ricevere
@@ -115,9 +122,8 @@ int main(int argc, char **argv){
         printf("%s\n", buffer);
 
 
-printf("number of clients = %d\n", num_client);
         if(num_client >= MAX_CLIENTS){
-            num_client --;
+            //num_client --;
             printf("Numero limite di clients superato.\n");
             bzero(buffer, BUFFER_SIZE);
             sprintf(buffer, "%d", SERVICE_UNAVAILABLE);
@@ -126,11 +132,21 @@ printf("number of clients = %d\n", num_client);
         }
         else{
             //calcolo porta per il client
+            num_client++;
             port++;
             client_port=PORT + port;
             bzero(buffer,BUFFER_SIZE);
             sprintf(buffer,"%d",client_port);
             sendto(socket_fd,buffer,BUFFER_SIZE,0,(SA*) &client_addr,len);
+            printf("Numero Clienti: %d\n",num_client);
+            pid_t pid=fork();
+            if (pid==-1){
+                printf("Fork error while creating process for new client");
+            }
+            if(pid==0){
+                //gestione segnali TODO
+                socket_fd=create_socket(client_port);
+            }
 
 
         }
