@@ -30,7 +30,7 @@
 #include<errno.h>
 
 /* defines */
-#define PORT 8080
+#define PORT 1024
 #define SA struct sockaddr
 #define MAX_CLIENTS 3
 #define BUFFER_SIZE 50
@@ -63,6 +63,7 @@ int main(int argc, char **argv){
     struct sigaction act;
     sigset_t set;
     int num_client = 0;
+    int port = 0,client_port;
 
     /* gestione segnali */
 
@@ -114,7 +115,7 @@ int main(int argc, char **argv){
         printf("%s\n", buffer);
 
 
-printf("number of clients = %d", num_client);
+printf("number of clients = %d\n", num_client);
         if(num_client >= MAX_CLIENTS){
             num_client --;
             printf("Numero limite di clients superato.\n");
@@ -122,6 +123,16 @@ printf("number of clients = %d", num_client);
             sprintf(buffer, "%d", SERVICE_UNAVAILABLE);
             if (sendto(socket_fd, buffer, BUFFER_SIZE, 0, (SA *) &client_addr, len) == -1)
                 printf("sendto() error %d: %s", SERVICE_UNAVAILABLE, strerror(errno));
+        }
+        else{
+            //calcolo porta per il client
+            port++;
+            client_port=PORT + port;
+            bzero(buffer,BUFFER_SIZE);
+            sprintf(buffer,"%d",client_port);
+            sendto(socket_fd,buffer,BUFFER_SIZE,0,(SA*) &client_addr,len);
+
+
         }
 
     }

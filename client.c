@@ -7,7 +7,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#define PORT 8080 
+#define PORT 1024 
 #define SA struct sockaddr 
 
 
@@ -31,8 +31,11 @@ int main()
 
 
 	// function for chat 
+	len = sizeof(server_addr);
 	scanf("%s",cmd);
 	sendto(sockfd,cmd,sizeof(cmd),0, (SA*) & server_addr,sizeof(server_addr)); 
+	recvfrom(sockfd, (char *) buffer, sizeof(buffer), 0, (SA *) &server_addr, &len);
+	printf("%s",buffer);
 
 	/*
     len = sizeof(server_addr);
