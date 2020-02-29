@@ -57,9 +57,9 @@ int create_socket(int s_port){
     //creazione socket
     socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (socket_fd == -1){
-        printf("Socket %d creation failed.\n",s_port);
+        printf("\nSocket %d creation failed.\n",s_port);
     }else {
-        printf("Socket %d created succesfully.\n",s_port);
+        printf("\nSocket %d created succesfully.\n",s_port);
     }
     //flush della memoria per la struttura della socket
     bzero(&server_addr, sizeof(server_addr));
@@ -114,7 +114,6 @@ int main(int argc, char **argv){
 
     socket_fd=create_socket(PORT);
 
-    printf("\n\n");
 
     while (1) {
         //preparo il buffer del messaggio da ricevere
@@ -186,7 +185,7 @@ int main(int argc, char **argv){
                         printf("Pronto a ricevere\n");
                         bzero(buffer,BUFFER_SIZE);
                         recvfrom(socket_fd_child, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
-                        printf("Vuole scaricare il file: %s",buffer);
+                        printf("Vuole scaricare il file: %s\n",buffer);
                         sendto(socket_fd_child, "Download da implementare", 25 , 0, (SA *) &client_addr, len);
 						
 					}	
