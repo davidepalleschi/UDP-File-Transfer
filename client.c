@@ -15,6 +15,7 @@
 #include<sys/time.h>
 #include<errno.h>
 #include<pthread.h>
+#include<signal.h>
 
 /* defines */
 #define PORT 1024 
@@ -43,25 +44,29 @@ typedef struct _packet_form{
 } packet_form;
 
 /* variabili globali */
+char cmd[BUFFER_SIZE];
 char buffer[BUFFER_SIZE];
 char **file_buffer;
 int num_pkt;
 int socket_fd, msg_rec, len; 
 int server_addr_len;
 struct sockaddr_in server_addr;
+pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
 
 /* funzioni */
+void SIGINT_handler(int, siginfo_t *, void *);
 void receive_packets(void);
 int send_ack(int seq);
 
 
 int main() {  
-	char cmd[BUFFER_SIZE];
 	int ret;	//variabile per il controllo dei return values
 	int filename_len;
 	char filename[NAME_LEN];
 	int file_len;
 	int fd;
+	struct sigaction act;
+	sigset_t set;
 
 	//Create Socket
 	socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -74,6 +79,14 @@ int main() {
 	}
 
 	server_addr_len = sizeof(server_addr);
+
+	/* gestione SIGINT */
+
+	sigfillset(&set);
+	act.sa_sigaction = SIGINT_handler;
+	act.sa_mask = set;
+	act.sa_flags = 0;
+	sigaction(SIGINT, &act, NULL);
 
 	// assign IP, PORT
 
@@ -236,6 +249,7 @@ sen:
 				printf("recvfrom() error while receiving file name feedback.\n");
 				exit(-1);
 			}
+/**/		printf("controllo correttezza nome file %s\n", buffer);
 
 			if (atoi(buffer) == NOT_FOUND) goto get_insert;
 
@@ -246,6 +260,7 @@ sen:
 				printf("recvfrom() error while receiving file length");
 				exit(-1);
 			}
+/**/		printf("controllo correttezza lunghezza file %s\n", buffer);
 
 			// allocazione dinamica per la ricezione del file
 			// verra allocata tanta memoria quanta indicata dalla lunghezza del file
@@ -286,16 +301,29 @@ sen:
 			}
 			printf("File written succesfully.\n");
 			printf("Updating file list...\n");
-			//write file list
+			FILE *file_list;
+			file_list = fopen("file_list.txt", "a");
+			if (file_list == NULL){
+				printf("fopen() error while updating file_list.txt");
+				exit(-1);
+			}else{
+				pthread_mutex_lock(&m);
+				fprintf(file_list, "\n,%s", filename);
+				pthread_mutex_unlock(&m);
+			}
+			fclose(file_list);
+			printf("File list updated succesfully.\n");
+		}else
+	
 
 
 			
 
 
-		}
+		
 
 		/* PUT COMMAND */
-		
+		if (1){}
 
 
 	}
@@ -376,6 +404,7 @@ void receive_packets(){
 					exit(-1);
 				}
 			}
+/**/		printf("controllo correttezza pacchetto ricevuto %s\n", pkt);
 			printf("");
 
 			// apprendimento della sequenza del pacchetto
@@ -395,6 +424,7 @@ void receive_packets(){
 			}
 			memcpy(payload, beginning, end - beginning);
 			RX_pkt = payload;
+/**/		printf("controllo correttezza payload del pacchetto %s.\n", RX_pkt);
 			///SENDACK
 			if (send_ack(seq)){
 				if (strcpy(packets[seq].buf, RX_pkt) == NULL){
@@ -425,6 +455,7 @@ int send_ack(int seq){
 
 	float rndm = (float) random() / RAND_MAX;
 	if (rndm < (1 - loss_prob)){
+/**/ 	printf("controllo correttezza sending ACK %s.\n", buffer);
 		ret = sendto(socket_fd, buffer, 32, 0, (SA *) &server_addr, server_addr_len);
 		if (ret == -1){
 			printf("sendto() error while sending ack.\n");
@@ -432,6 +463,21 @@ int send_ack(int seq){
 		}
 		return 1;
 	}else return 0;
+}
+
+void SIGINT_handler(int signo, siginfo_t *a, void *b){
+	int ret;
+	printf("Client is closing connection...\n");
+	bzero(cmd, sizeof(cmd));
+	strcpy(cmd, "exit");
+	ret = sendto(socket_fd, cmd, sizeof(cmd), 0, (SA *) &server_addr, server_addr_len);
+	if (ret == -1){
+		printf("sendto() error while trying to exit connection.\n");
+		exit(-1);
+	}
+	close(socket_fd);
+	printf("Client disconnected.\n");
+	exit(0);
 }
 
 
