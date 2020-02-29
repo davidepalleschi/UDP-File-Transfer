@@ -47,6 +47,9 @@ typedef struct _packet_form{
 char cmd[BUFFER_SIZE];
 char buffer[BUFFER_SIZE];
 char **file_buffer;
+char *file_list_buffer;
+int filename_len;
+char filename[NAME_LEN];
 int num_pkt;
 int socket_fd, msg_rec, len; 
 int server_addr_len;
@@ -57,12 +60,12 @@ pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
 void SIGINT_handler(int, siginfo_t *, void *);
 void receive_packets(void);
 int send_ack(int seq);
+int file_to_send(void);
 
 
 int main() {  
 	int ret;	//variabile per il controllo dei return values
-	int filename_len;
-	char filename[NAME_LEN];
+
 	int file_len;
 	int fd;
 	struct sigaction act;
@@ -313,17 +316,62 @@ sen:
 			}
 			fclose(file_list);
 			printf("File list updated succesfully.\n");
-		}else
-	
-
-
-			
-
-
-		
+		}else	
 
 		/* PUT COMMAND */
-		if (1){}
+		if (strcmp("put", cmd) == 0){
+			ret == sendto(socket_fd, cmd, sizeof(cmd), 0, (SA *) &server_addr, server_addr_len);
+			if (ret == -1){
+				printf("sendto() error while sending put command to server.\n");
+				exit(-1);
+			}
+put_insert:
+			//ricezione del permesso di put
+			bzero(buffer, BUFFER_SIZE);
+			ret = recvfrom(socket_fd, buffer, BUFFER_SIZE, 0, (SA *) &server_addr, &server_addr_len);
+			if (ret == -1){
+				if (errno == EAGAIN) goto put_insert;
+				else{
+					printf("recvfrom() error while receiving put permission.\n");
+					exit(-1);
+				}
+			}
+
+/**/		printf("controllo correttezza risposta server = %s\n", buffer);
+
+			//server non in funzione
+			if (atoi(buffer) == SERVICE_UNAVAILABLE){
+				printf("Server is out of service.\n");
+				kill(getpid(), SIGINT);
+			}
+
+			// stampo la lista dei filename presente nel file_list del client
+			int fdtemp = open("file_list.txt", O_RDONLY, 0666);
+			if (fdtemp == -1){
+				printf("open() error while trying to open file_list.txt");
+				kill(getpid(), SIGINT);
+			}
+
+			int no_bytes_read = lseek(fd, 0, SEEK_END);
+			file_list_buffer = (char *) malloc(no_bytes_read * sizeof(char));
+			if (file_list_buffer == NULL){
+				printf("malloc error.\n");
+				exit(-1);
+			}
+			lseek(fdtemp, 0, 0);
+			ret = read(fdtemp, file_list_buffer, no_bytes_read);
+			if (ret == -1){
+				printf("read() error while reading server file list.\n");
+				exit(-1);
+			}
+			printf("List of available files in client:\n%s\n", file_list_buffer);
+			//close(fdtemp);
+			printf("Please insert file to be updated...\n");
+			fd = file_to_send();
+			printf("Starting file upload...\n");
+
+			//SONO ARRIVATO QUI 18:45 29/02/2020 in clientUDP.c start_sending_pckt(fd);
+		}
 
 
 	}
@@ -478,6 +526,46 @@ void SIGINT_handler(int signo, siginfo_t *a, void *b){
 	close(socket_fd);
 	printf("Client disconnected.\n");
 	exit(0);
+}
+
+int file_to_send(){
+	int ret;
+	int size;
+name_insert:
+	bzero(cmd, BUFFER_SIZE);
+	scanf("%s", cmd);
+	fflush(stdin);
+	int filename_len = strlen(cmd);
+	bzero(filename, NAME_LEN);
+	strcpy(filename, cmd);
+	printf("Opening file...\n");
+	int fd = open(filename, O_RDONLY, 0666);
+	if (fd == -1){
+		printf("open error: file doesn't exist.\n");
+		goto name_insert;
+	}
+	ret = sendto(socket_fd, cmd, sizeof(cmd), 0, (SA *) &server_addr, server_addr_len);
+	if (ret == -1){
+		printf("sendto() error in file_to_send().\n");
+		exit(-1);
+	}
+/**/ printf("controllo correttezza: voglio aggiornare file %s\n", cmd);
+	size = lseek(fd, 0, SEEK_END);
+	num_pkt = ceil(size/PAYLOAD) + 1;
+/**/ printf("controllo correttezza il numero di pacchetti da caricare è %d.\n", num_pkt);
+	lseek(fd, 0, 0);
+
+	//invio lunghezza
+	bzero(buffer, BUFFER_SIZE);
+	sprintf(buffer, "%d", size);
+	ret = sendto(socket_fd, buffer, BUFFER_SIZE, 0, (SA *) &server_addr, server_addr_len);
+	if (ret == -1){
+		printf("sendto error while sending filename length.\n");
+		exit(-1);
+	}
+/**/ printf("controllo correttezza invio la lunghezza del file %s.\n", buffer);
+
+	return fd;
 }
 
 
