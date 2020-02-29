@@ -325,12 +325,11 @@ void receive_packets(){
 	struct timeval timer;
 	timer.tv_sec = 0;
 	timer.tv_usec = TIMER;
-	setsocketopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &timer, sizeof(timer));
+	setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &timer, sizeof(timer));
 	// in ricezione finché non sono ottenuti tutti i pacchetti
 	while (pkts < num_pkt || counter <= num_pkt - 2){
-		if (TX_WINDOW < 2){
-			
-		}
+		if (TX_WINDOW % 2 == 1) window = offset;
+		else window = offset + 1;
 	}
 }
 
