@@ -46,18 +46,20 @@
 
 /* variabili globali */
 int socket_fd;
+int num_client = 0;
 
 /* dichiarazione funzioni */
 void interrupt_handler(int, siginfo_t *, void *);
+void child_death_handler(int, siginfo_t* , void* );
 
 int create_socket(int s_port){
     struct sockaddr_in server_addr;
     //creazione socket
     socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (socket_fd == -1){
-        printf("Socket creation failed.\n");
+        printf("Socket %d creation failed.\n",s_port);
     }else {
-        printf("Socket created succesfully.\n");
+        printf("Socket %d created succesfully.\n",s_port);
     }
     //flush della memoria per la struttura della socket
     bzero(&server_addr, sizeof(server_addr));
@@ -87,39 +89,52 @@ int main(int argc, char **argv){
     struct sockaddr_in  client_addr;
     int msgrcv, len;
     char buffer[BUFFER_SIZE];
-    struct sigaction act;
-    sigset_t set;
-    int num_client = 0;
+    struct sigaction act_int;
+    struct sigaction act_chld;
+    sigset_t set_int;
+    sigset_t set_chld;
     int port = 0,client_port;
 
     /* gestione segnali */
 
-    sigfillset(&set);
-    act.sa_sigaction = interrupt_handler;
-    act.sa_mask = set;
-    act.sa_flags = 0;
+    sigfillset(&set_int);
+    act_int.sa_sigaction = interrupt_handler;
+    act_int.sa_mask = set_int;
+    act_int.sa_flags = 0;
+    sigaction(SIGINT, &act_int, NULL);
+
+    sigfillset(&set_chld);
+    act_chld.sa_sigaction = child_death_handler;
+    act_chld.sa_mask = set_chld;
+    act_chld.sa_flags = 0;
+    sigaction(SIGCHLD, &act_chld, NULL);
 
     /* Inizializzazione socket */
+    printf("Start Server\n");
 
     socket_fd=create_socket(PORT);
+
+    printf("\n\n");
 
     while (1) {
         //preparo il buffer del messaggio da ricevere
         bzero(buffer, BUFFER_SIZE);
                 
         //preparo la ricezione dell'indirizzo del client
+        rec:
         bzero(&client_addr, sizeof(client_addr));
         len = sizeof(client_addr);
 
         //ricevo il messaggio dal client
+
         msgrcv = recvfrom(socket_fd, (char *) buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
+
         if (msgrcv == -1){
-            printf("rcvfrom() error .\n");
+            if (errno == EINTR) goto rec;
+            printf("rcvfrom() error, error: %s .\n", strerror(errno));
             bzero(buffer, BUFFER_SIZE);
         }
 
-        //ciò che manda il client
-        printf("%s\n", buffer);
 
         if(num_client >= MAX_CLIENTS){
             //num_client --;
@@ -137,24 +152,49 @@ int main(int argc, char **argv){
             bzero(buffer,BUFFER_SIZE);
             sprintf(buffer,"%d",client_port);
             sendto(socket_fd,buffer,BUFFER_SIZE,0,(SA*) &client_addr,len);
-            printf("Numero Clienti: %d\n",num_client);
             pid_t pid=fork();
             if (pid==-1){
                 printf("Fork error while creating process for new client");
             }
             if(pid==0){
                 //gestione segnali TODO
+                signal(SIGCHLD,SIG_IGN);
                 int socket_fd_child=create_socket(client_port);
+                printf("Numero Clienti: %d\n",num_client);
+                
                 
                 while (1)
                 {
                 
                 
-                bzero(buffer,BUFFER_SIZE);
-                recvfrom(socket_fd_child, (char *) buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
-                if(strncmp("list", buffer, strlen("list")) == 0){
-                    sendto(socket_fd_child, "Poi te la mando", 15 , 0, (SA *) &client_addr, len);
-                }
+                    bzero(buffer,BUFFER_SIZE);
+                    recvfrom(socket_fd_child, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
+                    if(strcmp("list", buffer) == 0){
+                        printf("Sto processando la richiesta di list del client collegato alla porta: %d.\n", client_port);
+                        sendto(socket_fd_child, "Poi te la mando", 15 , 0, (SA *) &client_addr, len);
+                    }
+
+                    if(strcmp("exit", buffer) == 0){
+                        printf("Client su porta %d uscito\n\n",client_port);
+                        close(socket_fd_child);
+                        fflush(stdout);
+                        exit(0);
+                    }
+                    if(strcmp("get", buffer) == 0){
+						printf("Sto processando la richiesta di download del client collegato alla porta: %d.\n", client_port);
+                        sendto(socket_fd_child, "Download da implementare", 25 , 0, (SA *) &client_addr, len);
+                        printf("Pronto a ricevere\n");
+                        bzero(buffer,BUFFER_SIZE);
+                        recvfrom(socket_fd_child, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
+                        printf("Vuole scaricare il file: %s",buffer);
+                        sendto(socket_fd_child, "Download da implementare", 25 , 0, (SA *) &client_addr, len);
+						
+					}	
+	
+					if(strcmp("put", buffer) == 0){
+						printf("Sto processando la richiesta di upload del client collegato alla porta: %d.\n", client_port);
+                        sendto(socket_fd_child, "Upload da implementare", 23 , 0, (SA *) &client_addr, len);
+					}
                 }
                 
 
@@ -176,4 +216,8 @@ void interrupt_handler(int signo, siginfo_t *a, void *b){
     close(socket_fd);
     exit(0);
 
+}
+
+void child_death_handler(int signo, siginfo_t *a, void *b){
+    num_client--;
 }
