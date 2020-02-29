@@ -16,6 +16,7 @@
 #include<errno.h>
 #include<pthread.h>
 
+/* defines */
 #define PORT 1024 
 #define SA struct sockaddr
 #define BUFFER_SIZE 50
@@ -27,13 +28,22 @@
 #define SERVICE_UNAVAILABLE 503
 #define ADDRESS "127.0.0.1"
 #define PAYLOAD 1024
+#define TX_WINDOW 3
+#define TIMER 300000
+
 
 #define fflush(stdin) while(getchar()!='\n'){}
+
+/* variabili globali */
+int num_pkt;
+int socket_fd, msg_rec, len; 
+
+/* funzioni */
+void receive_packets(void);
 
 
 int main() 
 { 
-	int socket_fd, msg_rec, len; 
 	struct sockaddr_in server_addr; 
 	char buffer[BUFFER_SIZE];
 	char cmd[BUFFER_SIZE];
@@ -43,7 +53,6 @@ int main()
 	char filename[NAME_LEN];
 	int file_len;
 	char **file_buffer;
-	int num_pkt;
 	int fd;
 
 	//Create Socket
@@ -257,7 +266,7 @@ get_insert:	// preparo il buffer in trasmissione
 				exit(-1);
 			}
 			
-			//SONO ARRIVATO QUI 18:35 28/02/2020
+			receive_packets();
 
 			
 
@@ -302,6 +311,27 @@ get_insert:	// preparo il buffer in trasmissione
 		/* ************************* */
 	}
 	
+}
+
+
+void receive_packets(){
+
+	int pkts = 0;
+	int counter = 0;
+	int temp = 0;
+	int offset = 0;
+	int window = TX_WINDOW;
+	offset = num_pkt%window;
+	struct timeval timer;
+	timer.tv_sec = 0;
+	timer.tv_usec = TIMER;
+	setsocketopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &timer, sizeof(timer));
+	// in ricezione finché non sono ottenuti tutti i pacchetti
+	while (pkts < num_pkt || counter <= num_pkt - 2){
+		if (TX_WINDOW < 2){
+			
+		}
+	}
 }
 
 
