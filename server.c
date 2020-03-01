@@ -97,35 +97,24 @@ char* dirfile(char* buffer){
 return buffer;
 }
 
-char* ispresent(char* curr){
-        char buffer[50];
-        char * currline = buffer;
-        dirfile(buffer);
-        while(currline){
-          char * nextLine = strchr(currline, '\n');
-          if (nextLine) *nextLine = '\0'; 
-          if(strcmp(curr,currline)==0){
-              return "Presente";
-            }
-          if (nextLine) *nextLine = '\n'; 
-          currline = nextLine ? (nextLine+1) : NULL;
-       }
-       return "Non Presente";
-}
 
-char* ispresent2(char* curr){
-    printf("Ispresent");
-    int fd=open(curr,O_RDONLY, 0666);
+char* ispresent(char* curr){
+    char file[30]="./file_server/";
+    char* filep=file;
+    strcat(filep,curr);
+    int fd=open(file,O_RDONLY, 0666);
     int size=lseek(fd,0,SEEK_END);
     char sizestr[50];
     bzero(sizestr,sizeof(sizestr));
     if(fd==-1){
-        return "Non presente";
+        return "404";
     }
     else{
         sprintf(sizestr,"%d",size);
-        return strcat("Presente Dim: ", sizestr);
+        return strcat(sizestr," 200");
     }
+    lseek(fd,0,SEEK_SET);
+    close(fd);
 }
 
 void cmd_list(char * buffer, int socket_fd, struct sockaddr_in client_addr){
@@ -135,13 +124,11 @@ void cmd_list(char * buffer, int socket_fd, struct sockaddr_in client_addr){
     sendto(socket_fd, buffer, BUFFER_SIZE , 0, (SA *) &client_addr, len);
 }
 
-void cmd_get(char * buffer, int socket_fd, struct sockaddr_in client_addr){
+void cmd_corr(char * buffer, int socket_fd, struct sockaddr_in client_addr){
     int len=sizeof(client_addr);
     bzero(buffer,BUFFER_SIZE);
-    recvfrom(socket_fd, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);//Mi arriva NOme file
-    printf("Mi è arrivato il nome");
-    sendto(socket_fd, ispresent2(buffer), 13 , 0, (SA *) &client_addr, len); //Invio la presenza o meno del file
-    sendto(socket_fd, "110", 25 , 0, (SA *) &client_addr, len);  //Invio lunghezza file
+    recvfrom(socket_fd, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);//Mi arriva Nome file
+    sendto(socket_fd, ispresent(buffer), 50 , 0, (SA *) &client_addr, len); //Invio la presenza o meno del file
 
 }
 
@@ -188,6 +175,7 @@ int main(int argc, char **argv){
 
 
     while (1) {
+        //signal(SIGCHLD,SIG_IGN);
         //preparo il buffer del messaggio da ricevere
         bzero(buffer, BUFFER_SIZE);
                 
@@ -208,7 +196,6 @@ int main(int argc, char **argv){
 
 
         if(num_client >= MAX_CLIENTS){
-            //num_client --;
             printf("Numero limite di clients superato.\n");
             bzero(buffer, BUFFER_SIZE);
             sprintf(buffer, "%d", SERVICE_UNAVAILABLE);
@@ -231,14 +218,12 @@ int main(int argc, char **argv){
                 //gestione segnali TODO
                 signal(SIGCHLD,SIG_IGN);
                 int socket_fd_child=create_socket(client_port);
-                printf("Numero Clienti: %d\n",num_client);
+                printf("Numero Clienti: %d\n\n",num_client);
                 
                 
                 while (1)
                 {
-                
-                
-                    bzero(buffer,BUFFER_SIZE);
+                bzero(buffer,BUFFER_SIZE);
                     recvfrom(socket_fd_child, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
                     if(strcmp("list", buffer) == 0){
                         printf("Sto processando la richiesta di list del client collegato alla porta: %d.\n", client_port);
@@ -254,10 +239,18 @@ int main(int argc, char **argv){
                     if(strcmp("get", buffer) == 0){
 						printf("Sto processando la richiesta di download del client collegato alla porta: %d.\n", client_port);
                         cmd_list(buffer,socket_fd_child,client_addr);
-                        cmd_get(buffer,socket_fd_child,client_addr);
-                        
-						
-					}	
+                        bzero(buffer,BUFFER_SIZE);
+                        sprintf(buffer,"%s","404");
+                        while((strcmp(ispresent(buffer),"404")==0)){
+                            cmd_corr(buffer,socket_fd_child,client_addr);
+                            if((strcmp(ispresent(buffer),"404")==0)){
+                                 printf("Richiesta di download non andata a buon fine sulla porta: %d file non presente\n ", client_port);
+                            }
+                            else{
+                                printf("Richiesta download accettata su porta: %d nome corretto\n",client_port);
+                            }
+                        }
+                    }	
 	
 					if(strcmp("put", buffer) == 0){
 						printf("Sto processando la richiesta di upload del client collegato alla porta: %d.\n", client_port);
