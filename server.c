@@ -28,6 +28,7 @@
 #include<sys/shm.h>
 #include<pthread.h>
 #include<errno.h>
+#include<dirent.h>
 
 /* defines */
 #define PORT 1024
@@ -78,11 +79,79 @@ int create_socket(int s_port){
     return socket_fd;
 }
 
+char* dirfile(char* buffer){
+    DIR *dir;
+    struct dirent *ent;
+    if ((dir = opendir ("./file_server/")) != NULL) {
+    while ((ent = readdir (dir)) != NULL) {
+        if(strcmp(ent->d_name,".") != 0 + strcmp(ent->d_name,"..") != 0 == 0){
+            strcat(buffer,ent->d_name);
+            strcat(buffer,"\n");
+        }
+    }
+    closedir (dir);
+}   else {
+    /* could not open directory */
+    strcat(buffer,"ERROR");
+}
+return buffer;
+}
+
+char* ispresent(char* curr){
+        char buffer[50];
+        char * currline = buffer;
+        dirfile(buffer);
+        while(currline){
+          char * nextLine = strchr(currline, '\n');
+          if (nextLine) *nextLine = '\0'; 
+          if(strcmp(curr,currline)==0){
+              return "Presente";
+            }
+          if (nextLine) *nextLine = '\n'; 
+          currline = nextLine ? (nextLine+1) : NULL;
+       }
+       return "Non Presente";
+}
+
+char* ispresent2(char* curr){
+    printf("Ispresent");
+    int fd=open(curr,O_RDONLY, 0666);
+    int size=lseek(fd,0,SEEK_END);
+    char sizestr[50];
+    bzero(sizestr,sizeof(sizestr));
+    if(fd==-1){
+        return "Non presente";
+    }
+    else{
+        sprintf(sizestr,"%d",size);
+        return strcat("Presente Dim: ", sizestr);
+    }
+}
+
+void cmd_list(char * buffer, int socket_fd, struct sockaddr_in client_addr){
+    int len=sizeof(client_addr);
+    bzero(buffer,BUFFER_SIZE);
+    dirfile(buffer);
+    sendto(socket_fd, buffer, BUFFER_SIZE , 0, (SA *) &client_addr, len);
+}
+
+void cmd_get(char * buffer, int socket_fd, struct sockaddr_in client_addr){
+    int len=sizeof(client_addr);
+    bzero(buffer,BUFFER_SIZE);
+    recvfrom(socket_fd, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);//Mi arriva NOme file
+    printf("Mi è arrivato il nome");
+    sendto(socket_fd, ispresent2(buffer), 13 , 0, (SA *) &client_addr, len); //Invio la presenza o meno del file
+    sendto(socket_fd, "110", 25 , 0, (SA *) &client_addr, len);  //Invio lunghezza file
+
+}
+
 
 
 int main(int argc, char **argv){
+    
 
     /* MAIN PROCESS SERVER STACK */
+
 
     pid_t child_pids[MAX_CLIENTS];
     pid_t parent_pid = getpid();
@@ -108,6 +177,9 @@ int main(int argc, char **argv){
     act_chld.sa_mask = set_chld;
     act_chld.sa_flags = 0;
     sigaction(SIGCHLD, &act_chld, NULL);
+    /*bzero(buffer,BUFFER_SIZE);
+    dirfile(buffer);
+    printf("%s\n",buffer);*/
 
     /* Inizializzazione socket */
     printf("Start Server\n");
@@ -170,7 +242,7 @@ int main(int argc, char **argv){
                     recvfrom(socket_fd_child, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
                     if(strcmp("list", buffer) == 0){
                         printf("Sto processando la richiesta di list del client collegato alla porta: %d.\n", client_port);
-                        sendto(socket_fd_child, "Poi te la mando", 15 , 0, (SA *) &client_addr, len);
+                        cmd_list(buffer,socket_fd_child,client_addr);
                     }
 
                     if(strcmp("exit", buffer) == 0){
@@ -181,12 +253,9 @@ int main(int argc, char **argv){
                     }
                     if(strcmp("get", buffer) == 0){
 						printf("Sto processando la richiesta di download del client collegato alla porta: %d.\n", client_port);
-                        sendto(socket_fd_child, "Download da implementare", 25 , 0, (SA *) &client_addr, len);
-                        printf("Pronto a ricevere\n");
-                        bzero(buffer,BUFFER_SIZE);
-                        recvfrom(socket_fd_child, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
-                        printf("Vuole scaricare il file: %s\n",buffer);
-                        sendto(socket_fd_child, "Download da implementare", 25 , 0, (SA *) &client_addr, len);
+                        cmd_list(buffer,socket_fd_child,client_addr);
+                        cmd_get(buffer,socket_fd_child,client_addr);
+                        
 						
 					}	
 	
