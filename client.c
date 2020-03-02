@@ -109,8 +109,6 @@ int main(int argc, char **argv) {
 		
 		scanf("%[^\n]",cmd);
 		fflush(stdin);
-		printf("@@@@@@ %s\n", cmd);
-		fflush(stdout);
 
 		/* EXIT COMMAND */
 		if (strcmp("exit", cmd) == 0){
@@ -154,7 +152,7 @@ list:		// preparo il buffer in ricezione
 
 		/* GET COMMAND */
 
-		if (strcmp("get", cmd) == 0){
+		if (strncmp("get", cmd, 3) == 0){
 			printf("sending get command to server.\n");
 			ret = sendto(socket_fd, cmd, sizeof(cmd), 0, (SA *) &server_addr, server_addr_len);
 			if (ret == -1){
@@ -173,6 +171,8 @@ download:
 					exit(-1);
 				}
 			}
+
+			
 
 			if (atoi(buffer) == SERVICE_UNAVAILABLE){
 				printf("Server has shutdown.\n");
@@ -274,7 +274,7 @@ sen:
 		}else	
 
 		/* PUT COMMAND */
-		if (strcmp("put", cmd) == 0){
+		if (strncmp("put", cmd, 3) == 0){
 			ret == sendto(socket_fd, cmd, sizeof(cmd), 0, (SA *) &server_addr, server_addr_len);
 			if (ret == -1){
 				printf("sendto() error while sending put command to server.\n");
