@@ -128,8 +128,6 @@ void cmd_list(int socket_fd, struct sockaddr_in client_addr){
 
 void cmd_corr(char * buffer, int socket_fd, struct sockaddr_in client_addr){
     int len=sizeof(client_addr);
-    bzero(buffer,BUFFER_SIZE);
-    recvfrom(socket_fd, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);//Mi arriva Nome file
     sendto(socket_fd, ispresent(buffer), 50 , 0, (SA *) &client_addr, len); //Invio la presenza o meno del file
 
 }
@@ -230,7 +228,6 @@ int main(int argc, char **argv){
                     char tok[50];
                     char* token=tok;
                     token=strtok(buffer," ");
-                    printf("token: %s\n",token);
                     if(strcmp("list", token) == 0){
                         printf("Sto processando la richiesta di list del client collegato alla porta: %d.\n", client_port);
                         cmd_list(socket_fd_child,client_addr);
@@ -245,20 +242,9 @@ int main(int argc, char **argv){
                     if(strcmp("get", token) == 0){
 						printf("Sto processando la richiesta di download del client collegato alla porta: %d.\n", client_port);
                         token=strtok(NULL,"");
-                        printf("token: %s\n",token);
-                        cmd_list(socket_fd_child,client_addr);
-                        bzero(buffer,BUFFER_SIZE);
-                        sprintf(buffer,"%s","404");
-                        while((strcmp(ispresent(buffer),"404")==0)){
-                            cmd_corr(buffer,socket_fd_child,client_addr);
-                            if((strcmp(ispresent(buffer),"404")==0)){
-                                 printf("Richiesta di download non andata a buon fine sulla porta: %d file non presente\n ", client_port);
-                            }
-                            else{
-                                printf("Richiesta download accettata su porta: %d nome corretto\n",client_port);
-                            }
+                        cmd_corr(token,socket_fd_child,client_addr);
                         }
-                    }	
+                    	
 	
 					if(strcmp("put", buffer) == 0){
 						printf("Sto processando la richiesta di upload del client collegato alla porta: %d.\n", client_port);
