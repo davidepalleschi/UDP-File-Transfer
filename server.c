@@ -101,6 +101,7 @@ return buffer;
 char* ispresent(char* curr){
     char file[30]="./file_server/";
     char* filep=file;
+    char ok[30]="200 ";
     strcat(filep,curr);
     int fd=open(file,O_RDONLY, 0666);
     int size=lseek(fd,0,SEEK_END);
@@ -111,7 +112,7 @@ char* ispresent(char* curr){
     }
     else{
         sprintf(sizestr,"%d",size);
-        return strcat(sizestr," 200");
+        return strcat(ok , sizestr);
     }
     lseek(fd,0,SEEK_SET);
     close(fd);
