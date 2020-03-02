@@ -31,7 +31,11 @@
 #define PAYLOAD 1024
 #define TX_WINDOW 3
 #define TIMER 300000
+#define SENDING_TIMER 100000
+#define MIN_SENDING_TIMER 0.005
 #define LOSS_PROBABILITY 0.15
+#define ALPHA 0.125
+#define BETA 0.25
 
 
 #define fflush(stdin) while(getchar()!='\n'){}
@@ -55,21 +59,38 @@ int socket_fd, msg_rec, len;
 int server_addr_len;
 struct sockaddr_in server_addr;
 pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
+int adaptive = 0;
+int base = 0; //window base index
+
+double estimateRTT;
+double devRTT;
+double sending_timeout;
 
 /* funzioni */
 void SIGINT_handler(int, siginfo_t *, void *);
 void receive_packets(void);
 int send_ack(int seq);
 int file_to_send(void);
+int send_pkt(packet_form *file_form, int seq, int size);
+void set_adpt_timeout(double time);
+void get_adpt_timeout(double start, double end);
+void check_pkt(packet_form *, int offset, int seq);
 
 
-int main() {  
+// use argument adpt to use adaptive timeout
+int main(int argc, char **argv) {  
 	int ret;	//variabile per il controllo dei return values
 
 	int file_len;
 	int fd;
 	struct sigaction act;
 	sigset_t set;
+
+	if (argc == 2){
+		if (strcmp(argv[1], "adpt") == 0){
+			adaptive = 1;
+		}
+	}
 
 	//Create Socket
 	socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -370,7 +391,64 @@ put_insert:
 			fd = file_to_send();
 			printf("Starting file upload...\n");
 
-			//SONO ARRIVATO QUI 18:45 29/02/2020 in clientUDP.c start_sending_pckt(fd);
+			//SONO ARRIVATO QUI 18:45 29/02/2020 in clientUDP.c 
+			//start_sending_pckt(fd);
+
+			// invio dei pacchetti
+			packet_form file_form[num_pkt];
+			for(int i=0; i<num_pkt; i++){
+				bzero(file_form[i].buf, BUFFER_SIZE);
+			}
+
+			int counter = 0;
+			char *temp_payload = (char *) malloc(PAYLOAD * sizeof(char));
+			if (temp_payload == NULL){
+				printf("malloc error for temporary payload.\n");
+				exit(-1);
+			}
+
+			for(int i=0; i<num_pkt; i++){
+				bzero(temp_payload, PAYLOAD);
+				ret = read(fd, temp_payload, PAYLOAD);
+				if (ret == -1){
+					printf("read() error while reading from file.\n");
+					exit(-1);
+				}
+
+				char pkt[BUFFER_SIZE];
+				if (sprintf(pkt, "%d", i) < 0){
+					printf("sprintf() error while forming packets.\n");
+					exit(-1);
+				}
+
+				if (strcat(pkt, temp_payload) == NULL){
+					printf("strcat() error while forming packets.\n");
+					exit(-1);
+				}
+
+/**/			printf("controllo correttezza PACKET = %s\n", file_form[i].buf);
+				file_form[i].counter = i;
+			}
+
+			int seq = 0;
+			struct timeval timer;
+			timer.tv_sec = 0;
+			timer.tv_usec = SENDING_TIMER;
+			setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &timer, sizeof(timer));
+			int offset = num_pkt % TX_WINDOW;
+			if (offset > 0){ //more pkts than tx_window size
+				if (num_pkt - seq >= offset){
+					while( seq < num_pkt - offset){
+						seq = send_pkt(file_form, seq, TX_WINDOW);
+					}
+				}
+				seq = send_pkt(file_form, seq, offset);
+			}else {
+				while(seq < num_pkt){
+					seq = send_pkt(file_form, seq, TX_WINDOW);
+				}
+			}
+
 		}
 
 
@@ -395,9 +473,9 @@ put_insert:
 	
 	
 	return 0;
-
+/*
 	if (0){
-		/* *** FUNZIONE PER CHAT *** */ 
+		 //*** FUNZIONE PER CHAT *** 
 	prova_davide:
 		scanf("%s",cmd);
 		sendto(socket_fd,cmd,sizeof(cmd),0, (SA*) & server_addr,server_addr_len); 
@@ -405,9 +483,9 @@ put_insert:
 		printf("%s",buffer);
 		close(socket_fd);
 		return 0;
-		/* ************************* */
+		 //************************* 
 	}
-	
+	*/
 }
 
 
@@ -568,4 +646,129 @@ name_insert:
 	return fd;
 }
 
+// returns actual sequence number
+// if (argv[1] == adpt) ==> adaptive timeout
+int send_pkt(packet_form *file_form, int seq, int size){
+	int ret;
+	int lock;
+	double send_timer = 0.1;
+	int startRTT = 0, endRTT = 0;
+	struct timeval time;
+	for(int i=0; i<size; i++){
+		lock = 0;
+		file_form[seq].ack = 0;
+		if (adaptive){
+			set_adpt_timeout(send_timer);
+			int ret = gettimeofday(&time, NULL);
+			if (ret == -1){
+				printf("gettimeofday() error while sending packet.\n");
+				exit(-1);
+			}		
+			startRTT = time.tv_sec + (time.tv_usec / 1000000.0);
+		} else {
+			//setting timeout value
+			struct timeval timer;
+			timer.tv_sec = 0;
+			timer.tv_usec = TIMER;
+			setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &timer, sizeof(timer));
+		}
+		ret = sendto(socket_fd, file_form[seq].buf, BUFFER_SIZE, 0, (SA *) &server_addr, server_addr_len);
+		if (ret == -1){
+			fprintf(stderr, "sendto() error while sending pkt %d.\n", seq);
+			exit(-1);
+		}
+
+		bzero(buffer, BUFFER_SIZE);
+		ret = recvfrom(socket_fd, buffer, BUFFER_SIZE, 0, (SA *) &server_addr, &server_addr_len);
+		if (ret == -1){
+			if (errno == EAGAIN) {
+				lock = 1;
+/**/			printf("controllo correttezza. Pacchetto perso: ack %d non ricevuto.\n", seq);
+			} else {
+				printf("recvfrom error while server is sending packet.\n");
+				exit(-1);
+			}
+		}
+
+		//setting variable adaptive timeout interval
+		if (adaptive){
+			int ret;
+			ret = gettimeofday(&time, NULL);
+			if (ret == -1){
+				printf("gettimeofday error while server is sending packet.\n");
+				exit(-1);
+			}
+			endRTT = time.tv_sec + (time.tv_usec / 1000000.0);
+			//todo get_adpt_timeout [get_adaptive_timeout]
+			get_adpt_timeout(startRTT, endRTT);
+		}
+		if (!lock){
+			int check;
+			check = atoi(buffer);
+			if (check >= 0){
+				file_form[check].ack = 1;
+			}
+		}
+		seq ++;
+	}
+	//check dell'arrivo di tutti i pacchetti
+	//todo check_pkt [check_packet_sendend_of_window]
+	check_pkt(file_form, size, seq);
+	return seq;
+}
+
+//time amount we want to set waiting time socket
+void set_adpt_timeout(double time){
+	if (time < MIN_SENDING_TIMER) time = MIN_SENDING_TIMER;
+	struct timeval timer;
+	timer.tv_sec = 0;
+	timer.tv_usec = time*100000;
+	setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &timer, sizeof(timer));
+}
+
+void get_adpt_timeout(double start, double end){
+	double sampleRTT = start - end;
+	estimateRTT = ((1 - ALPHA) * estimateRTT) + (ALPHA * (sampleRTT));
+	devRTT = ((1 - BETA) * (devRTT + BETA)) * (fabs(((sampleRTT) - estimateRTT)));
+	sending_timeout = estimateRTT + (4 * devRTT);
+}
+
+//
+void check_pkt(packet_form *file_form, int offset, int seq){
+	int ret;
+	for (int i= base; i<(base + offset); i++){
+		if (file_form[i].ack != 1){
+retry:
+			ret = sendto(socket_fd, file_form[i].buf, BUFFER_SIZE, 0, (SA *) &server_addr, server_addr_len);
+			if (ret == -1){
+				fprintf(stderr, "sendto() error while sending packet no %d.\n", i);
+				exit(-1);
+			}
+
+/**/ 		printf("controllo correttezza: sending packet no %d.\n", i);
+
+			bzero(buffer, BUFFER_SIZE);
+			ret = recvfrom(socket_fd, buffer, BUFFER_SIZE, 0, (SA *) &server_addr, &server_addr_len);
+			if (ret == -1){
+				if (errno == EAGAIN){
+					if (i == num_pkt -1){
+						goto done;
+					}
+					usleep(50);
+					goto retry;
+				} else {
+					printf("recvfrom() error while checking packet.\n");
+					exit(-1);
+				}
+			}
+done:
+			printf("");
+			int check = atoi(buffer);
+			check = atoi(buffer);
+			if (check > 0){
+				file_form[check].ack = 1;
+			}
+		}
+	}
+}
 
