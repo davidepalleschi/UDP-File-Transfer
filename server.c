@@ -101,24 +101,25 @@ return buffer;
 char* ispresent(char* curr){
     char file[30]="./file_server/";
     char* filep=file;
-    char ok[30]="200 ";
+    char ok[50]="200 ";
     strcat(filep,curr);
     int fd=open(file,O_RDONLY, 0666);
     int size=lseek(fd,0,SEEK_END);
-    char sizestr[50];
+    char sizestr[25];
     bzero(sizestr,sizeof(sizestr));
     if(fd==-1){
         return "404";
     }
     else{
         sprintf(sizestr,"%d",size);
-        return strcat(ok , sizestr);
+        return strcat(ok  , sizestr);
     }
     lseek(fd,0,SEEK_SET);
     close(fd);
 }
 
-void cmd_list(char * buffer, int socket_fd, struct sockaddr_in client_addr){
+void cmd_list(int socket_fd, struct sockaddr_in client_addr){
+    char buffer[50];
     int len=sizeof(client_addr);
     bzero(buffer,BUFFER_SIZE);
     dirfile(buffer);
@@ -226,20 +227,26 @@ int main(int argc, char **argv){
                 {
                 bzero(buffer,BUFFER_SIZE);
                     recvfrom(socket_fd_child, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
-                    if(strcmp("list", buffer) == 0){
+                    char tok[50];
+                    char* token=tok;
+                    token=strtok(buffer," ");
+                    printf("token: %s\n",token);
+                    if(strcmp("list", token) == 0){
                         printf("Sto processando la richiesta di list del client collegato alla porta: %d.\n", client_port);
-                        cmd_list(buffer,socket_fd_child,client_addr);
+                        cmd_list(socket_fd_child,client_addr);
                     }
 
-                    if(strcmp("exit", buffer) == 0){
+                    if(strcmp("exit", token) == 0){
                         printf("Client su porta %d uscito\n\n",client_port);
                         close(socket_fd_child);
                         fflush(stdout);
                         exit(0);
                     }
-                    if(strcmp("get", buffer) == 0){
+                    if(strcmp("get", token) == 0){
 						printf("Sto processando la richiesta di download del client collegato alla porta: %d.\n", client_port);
-                        cmd_list(buffer,socket_fd_child,client_addr);
+                        token=strtok(NULL,"");
+                        printf("token: %s\n",token);
+                        cmd_list(socket_fd_child,client_addr);
                         bzero(buffer,BUFFER_SIZE);
                         sprintf(buffer,"%s","404");
                         while((strcmp(ispresent(buffer),"404")==0)){
