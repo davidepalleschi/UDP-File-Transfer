@@ -61,7 +61,7 @@ char* ispresent(char* file_name);
 void cmd_list(int socket_fd, struct sockaddr_in client_addr);
 void cmd_corr(char * file_name, int socket_fd, struct sockaddr_in client_addr);
 void cmd_corr_put(char * token,char* siz,int socket_fd, struct sockaddr_in client_addr);
-void cmd_send_packets(char* file_name,int socket_fd, struct sockaddr_in client_addr);
+//void cmd_send_packets(char* file_name,int socket_fd, struct sockaddr_in client_addr);
 
 
 
@@ -178,7 +178,7 @@ int main(int argc, char **argv){
 						printf("Sto processando la richiesta di download del client collegato alla porta: %d.\n", client_port);
                         token=strtok(NULL,"");
                         cmd_corr(token,socket_fd_child,client_addr);
-                        cmd_send_packets(token,socket_fd_child,client_addr);
+                        //cmd_send_packets(token,socket_fd_child,client_addr);
                         }
                     	
 	
