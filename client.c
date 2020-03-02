@@ -1,84 +1,12 @@
-#include<netdb.h>
-#include<string.h>
-#include<stdlib.h>
-#include<stdio.h>
-#include<netinet/in.h>
-#include<sys/types.h>
-#include<netdb.h>
-#include<unistd.h>
-#include<arpa/inet.h>
-#include<sys/socket.h>
-#include<unistd.h>
-#include<fcntl.h>
-#include<math.h>
-#include<sys/mman.h>
-#include<sys/time.h>
-#include<errno.h>
-#include<pthread.h>
-#include<signal.h>
-
-/* defines */
-#define PORT 1024 
-#define SA struct sockaddr
-#define BUFFER_SIZE 50
-#define NAME_LEN 128
-#define OK 200
-#define BAD_REQUEST 400
-#define NOT_FOUND 404
-#define NOT_ACCEPTABLE 406
-#define SERVICE_UNAVAILABLE 503
-#define ADDRESS "127.0.0.1"
-#define PAYLOAD 1024
-#define TX_WINDOW 3
-#define TIMER 300000
-#define SENDING_TIMER 100000
-#define MIN_SENDING_TIMER 0.005
-#define LOSS_PROBABILITY 0.15
-#define ALPHA 0.125
-#define BETA 0.25
-
+#include"uft_client/includes.h"
 
 #define fflush(stdin) while(getchar()!='\n'){}
 
-/* nuovi tipi */
-typedef struct _packet_form{
-	int counter;
-	char buf[BUFFER_SIZE];
-	int ack;
-} packet_form;
-
-/* variabili globali */
-char cmd[BUFFER_SIZE];
-char buffer[BUFFER_SIZE];
-char **file_buffer;
-char *file_list_buffer;
-int filename_len;
-char filename[NAME_LEN];
-int num_pkt;
-int socket_fd, msg_rec, len; 
-int server_addr_len;
-struct sockaddr_in server_addr;
-pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
-int adaptive = 0;
-int base = 0; //window base index
-
-double estimateRTT;
-double devRTT;
-double sending_timeout;
-
-/* funzioni */
-void SIGINT_handler(int, siginfo_t *, void *);
-void receive_packets(void);
-int send_ack(int seq);
-int file_to_send(void);
-int send_pkt(packet_form *file_form, int seq, int size);
-void set_adpt_timeout(double time);
-void get_adpt_timeout(double start, double end);
-void check_pkt(packet_form *, int offset, int seq);
-
-
 // use argument adpt to use adaptive timeout
-int main(int argc, char **argv) {  
+int main(int argc, char **argv) { 
+
+	/* variabili locali */
+
 	int ret;	//variabile per il controllo dei return values
 
 	int file_len;
@@ -86,13 +14,23 @@ int main(int argc, char **argv) {
 	struct sigaction act;
 	sigset_t set;
 
+	/* controllo argomento */
+
 	if (argc == 2){
 		if (strcmp(argv[1], "adpt") == 0){
 			adaptive = 1;
 		}
 	}
 
-	//Create Socket
+	/* gestione SIGINT */
+
+	sigfillset(&set);
+	act.sa_sigaction = SIGINT_handler;
+	act.sa_mask = set;
+	act.sa_flags = 0;
+	sigaction(SIGINT, &act, NULL);
+
+	//creazione socket per il benvenuto
 	socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (socket_fd == -1){
 		printf("Error: cannot create socket. %s\n", strerror(errno));
@@ -104,26 +42,18 @@ int main(int argc, char **argv) {
 
 	server_addr_len = sizeof(server_addr);
 
-	/* gestione SIGINT */
-
-	sigfillset(&set);
-	act.sa_sigaction = SIGINT_handler;
-	act.sa_mask = set;
-	act.sa_flags = 0;
-	sigaction(SIGINT, &act, NULL);
-
 	// assign IP, PORT
-
 	bzero(&server_addr, server_addr_len);
 	server_addr.sin_family = AF_INET; 
 	server_addr.sin_addr.s_addr = inet_addr(ADDRESS); 
 	server_addr.sin_port = htons(PORT);
    
-// per provare la funzione chat scommenta l'istruzione successiva
-//goto prova_davide;
+	// per provare la funzione chat scommenta l'istruzione successiva
+	//goto prova_davide;
 
 	//pulizia buffer di messaggio
 	bzero(buffer, BUFFER_SIZE);
+	strcpy(buffer, "hello");
 	ret = sendto(socket_fd, buffer, sizeof(buffer), 0, (SA *)&server_addr, server_addr_len);
 	if (ret == -1){
 		printf("sendto() error while sending welcome packet.\n");
@@ -146,7 +76,7 @@ int main(int argc, char **argv) {
 	// chiudo la connessione di accettazione tramite la porta di benvenuto
 	close(socket_fd);
 
-	int response = atoi(buffer);
+	int response = atoi(buffer); //nuovo numero di porta
 	if (response == SERVICE_UNAVAILABLE){
 		printf("Server is out of service.\n");
 		exit(-1);
@@ -177,11 +107,15 @@ int main(int argc, char **argv) {
 
 		//ottengo la stringa dell'utente clien
 		
-		scanf("%s",cmd);
+		scanf("%[^\n]",cmd);
+		fflush(stdin);
+		printf("@@@@@@ %s\n", cmd);
+		fflush(stdout);
 
 		/* EXIT COMMAND */
 		if (strcmp("exit", cmd) == 0){
 			printf("Client is closing connection...\n");
+			// comunico al server l'uscita di questo client
 			ret = sendto(socket_fd, cmd, sizeof(cmd), 0, (SA *) &server_addr, server_addr_len);
 			if (ret == -1){
 				printf("sendto() error while trying to exit connection.\n");
