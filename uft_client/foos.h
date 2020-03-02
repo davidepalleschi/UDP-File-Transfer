@@ -1,5 +1,6 @@
 #ifndef _FOOS_H
 #define _FOOS_H
+#include <stdio.h>
 #include <signal.h>
 #include "types.h"
 
@@ -11,5 +12,12 @@ int send_pkt(packet_form *file_form, int seq, int size);
 void set_adpt_timeout(double time);
 void get_adpt_timeout(double start, double end);
 void check_pkt(packet_form *, int offset, int seq);
+void display(void){
+    printf("\nINSERT A COMMAND:\n"
+			"- list\n"
+			"- get\n"
+			"- put\n"
+            "- exit\n\n");
+}
 
 #endif
