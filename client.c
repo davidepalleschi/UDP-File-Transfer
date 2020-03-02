@@ -176,7 +176,7 @@ download:
 			}
 
 			char *string_code;
-			string_code = strtok(buffer, " ");			
+			string_code = strtok(buffer, " ");
 			int code = atoi(string_code);
 
 			if(code != OK){

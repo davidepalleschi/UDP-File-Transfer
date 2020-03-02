@@ -163,17 +163,13 @@ int main(int argc, char **argv){
                     char size[50];
                     char* sizep=size;
                     token=strtok(buffer," ");
+
+
                     if(strcmp("list", token) == 0){
                         printf("Sto processando la richiesta di list del client collegato alla porta: %d.\n", client_port);
                         cmd_list(socket_fd_child,client_addr);
                     }
 
-                    if(strcmp("exit", token) == 0){
-                        printf("Client su porta %d uscito\n\n",client_port);
-                        close(socket_fd_child);
-                        fflush(stdout);
-                        exit(0);
-                    }
                     if(strcmp("get", token) == 0){
 						printf("Sto processando la richiesta di download del client collegato alla porta: %d.\n", client_port);
                         token=strtok(NULL,"");
@@ -181,14 +177,20 @@ int main(int argc, char **argv){
                         //cmd_send_packets(token,socket_fd_child,client_addr);
                         }
                     	
-	
-					if(strcmp("put", token) == 0){
+	                if(strcmp("put", token) == 0){
 						printf("Sto processando la richiesta di upload del client collegato alla porta: %d.\n", client_port);
                         token=strtok(NULL," ");
                         sizep=strtok(NULL,"");
                         cmd_corr_put(sizep,socket_fd_child,client_addr);
                         //cmd_recv_packets(token,socket_fd_child,client_addr);
 					}
+
+                    if(strcmp("exit", token) == 0){
+                        printf("Client su porta %d uscito\n\n",client_port);
+                        close(socket_fd_child);
+                        fflush(stdout);
+                        exit(0);
+                    }
                 }
                 
 
