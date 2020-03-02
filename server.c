@@ -60,6 +60,7 @@ char* ispresent(char* file_name);
 
 void cmd_list(int socket_fd, struct sockaddr_in client_addr);
 void cmd_corr(char * file_name, int socket_fd, struct sockaddr_in client_addr);
+void cmd_corr_put(char * token,char* siz,int socket_fd, struct sockaddr_in client_addr);
 void cmd_send_packets(char* file_name,int socket_fd, struct sockaddr_in client_addr);
 
 
@@ -159,6 +160,8 @@ int main(int argc, char **argv){
                     recvfrom(socket_fd_child, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
                     char tok[50];
                     char* token=tok;
+                    char size[50];
+                    char* siz=size;
                     token=strtok(buffer," ");
                     if(strcmp("list", token) == 0){
                         printf("Sto processando la richiesta di list del client collegato alla porta: %d.\n", client_port);
@@ -181,8 +184,10 @@ int main(int argc, char **argv){
 	
 					if(strcmp("put", token) == 0){
 						printf("Sto processando la richiesta di upload del client collegato alla porta: %d.\n", client_port);
-                        token=strtok(NULL,"");
-                        sendto(socket_fd_child, "Upload da implementare", 23 , 0, (SA *) &client_addr, len);
+                        token=strtok(NULL," ");
+                        siz=strtok(NULL,"");
+                        cmd_corr_put(token,siz,socket_fd_child,client_addr);
+                        //cmd_recv_packets(token,socket_fd_child,client_addr);
 					}
                 }
                 
@@ -291,7 +296,17 @@ void cmd_corr(char * file_name, int socket_fd, struct sockaddr_in client_addr){
     sendto(socket_fd, ispresent(file_name), 50 , 0, (SA *) &client_addr, len);
 }
 
-void cmd_send_packets(char* file_name,int socket_fd, struct sockaddr_in client_addr){
+void cmd_corr_put(char * token,char* siz,int socket_fd, struct sockaddr_in client_addr){
+    int len=sizeof(client_addr);
+    if (atoi(siz)>20000000 || ispresent(token)){
+        sendto(socket_fd, "406", 3 , 0, (SA *) &client_addr, len);
+    }
+    else{
+        sendto(socket_fd, "200", 3 , 0, (SA *) &client_addr, len);
+    }
+}
+
+void cmd_recv_packets(char* file_name,int socket_fd, struct sockaddr_in client_addr){
     int len=sizeof(client_addr);
     
 }
