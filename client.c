@@ -294,10 +294,11 @@ sen:
 			}*/
 
 			strtok(cmd, " ");
-			strcpy(filename, strtok(NULL, " "));
+			strcpy(filename, strtok(NULL, ""));
+		
+		
 
-			//apro il file per saperne la lunghezza:
-			printf("@@@ %s\n", filename);
+			//apro il file per saperne la lunghezza
 			int fdtemp = open(filename, O_RDONLY, 0666);
 			if (fdtemp == -1){
 				printf("open() error while checking file length.\n");
@@ -312,7 +313,11 @@ sen:
 		/**/printf("controllo correttezza file len %s\n", file_len_str);
 
 			strcat(cmd, " ");
+			strcat(cmd, filename);
+			strcat(cmd, " ");
 			strcat(cmd, file_len_str);
+
+		/**/printf("controllo correttezza stringa inviata %s\n", cmd);
 
 			ret = sendto(socket_fd, cmd, sizeof(cmd), 0, (SA *) &server_addr, server_addr_len);
 			if (ret == -1){
@@ -343,7 +348,9 @@ put_insert:
 					printf("Server is out of service.\n");
 					kill(getpid(), SIGINT);
 				}else if (code == NOT_ACCEPTABLE){
-					printf("Invalid updload.\n");
+					printf("\nServer response:\n\n"
+							"STATUS CODE: %d NOT ACCEPTABLE FILE\n"
+							"NOTE: Server cannot accpet file.\n\n", code);
 					display();
 					goto command;
 				}else exit(-1);
