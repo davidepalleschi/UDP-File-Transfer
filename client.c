@@ -59,11 +59,8 @@ int main(int argc, char **argv) {
 		printf("sendto() error while sending welcome packet.\n");
 		exit(-1);
 	}
-	printf("INSERT A COMMAND:\n"
-			"- exit\n"
-			"- list\n"
-			"- get\n"
-			"- put\n");
+	
+	display();
 
 	//preparo il buffer
 	bzero(buffer, BUFFER_SIZE);
@@ -101,7 +98,7 @@ int main(int argc, char **argv) {
 	/* corpo del client */
 
 	while (1) {
-
+command:
 		//preaparo l'area di comando
 		bzero(cmd, BUFFER_SIZE);
 
@@ -148,6 +145,7 @@ list:		// preparo il buffer in ricezione
 			}
 
 			printf("List of available files:\n%s\n", buffer);
+			display();
 		}else 
 
 		/* GET COMMAND */
@@ -159,6 +157,11 @@ list:		// preparo il buffer in ricezione
 				printf("sendto() error while sending get command to server.\n");
 				exit(-1);
 			}
+
+		strtok(cmd, " ");
+		strcpy(filename, strtok(NULL, ""));
+
+///*
 download:
 			//preparo il buffer in ricezione
 			bzero(buffer, BUFFER_SIZE);
@@ -172,16 +175,23 @@ download:
 				}
 			}
 
-			
+			char *string_code;
+			string_code = strtok(buffer, " ");			
+			int code = atoi(string_code);
 
-			if (atoi(buffer) == SERVICE_UNAVAILABLE){
-				printf("Server has shutdown.\n");
+			if(code != OK){
+				if (code == SERVICE_UNAVAILABLE){
+					printf("Server has shutdown.\n");
+					exit(-1);
+				}else if (code == NOT_FOUND){
+					printf("\nSTATUS CODE: %d FILE NOT FOUND\n\n", NOT_FOUND);
+					display();
+					goto command;
+				}
 				exit(-1);
 			}
 
-			printf("Downloading is allowed.\n");
-			//stampa della lista di file disponibili
-			printf("Available files:\n%s\n", buffer);
+/*
 
 get_insert:	// preparo il buffer in trasmissione
 			bzero(cmd, BUFFER_SIZE);
@@ -207,23 +217,24 @@ sen:
 				printf("recvfrom() error while receiving file name feedback.\n");
 				exit(-1);
 			}
-/**/		printf("controllo correttezza nome file %s\n", buffer);
+	//		printf("controllo correttezza nome file %s\n", buffer);
 
 			if (atoi(buffer) == NOT_FOUND) goto get_insert;
+*/
+			//apprendimento lunghezza file
 
-			//ricezione della lunghezza del file
-			bzero(buffer, BUFFER_SIZE);
-			ret = recvfrom(socket_fd, buffer, BUFFER_SIZE, 0, (SA *) &server_addr, &server_addr_len);
-			if (ret == -1){
-				printf("recvfrom() error while receiving file length");
-				exit(-1);
-			}
-/**/		printf("controllo correttezza lunghezza file %s\n", buffer);
+			char *file_len_string;
+			file_len_string = strtok(NULL, "");
+			file_len = atoi(file_len_string);
 
 			// allocazione dinamica per la ricezione del file
 			// verra allocata tanta memoria quanta indicata dalla lunghezza del file
 
-			file_len = atoi(buffer);
+			printf("\n"
+					"STATUS CODE : %d OK\n"
+					"FILE LENGTH: %d\n"
+					"NOTE: packet receiving...\n\n", code, file_len);
+
 			file_buffer = (char **) malloc(file_len * sizeof(char *));
 			if (file_buffer == NULL){
 				printf("Out of memory. (malloc error)\n");
@@ -271,15 +282,45 @@ sen:
 			}
 			fclose(file_list);
 			printf("File list updated succesfully.\n");
+			display();
 		}else	
 
 		/* PUT COMMAND */
 		if (strncmp("put", cmd, 3) == 0){
-			ret == sendto(socket_fd, cmd, sizeof(cmd), 0, (SA *) &server_addr, server_addr_len);
+			/*ret == sendto(socket_fd, cmd, sizeof(cmd), 0, (SA *) &server_addr, server_addr_len);
+			if (ret == -1){
+				printf("sendto() error while sending put command to server.\n");
+				exit(-1);
+			}*/
+
+			strtok(cmd, " ");
+			strcpy(filename, strtok(NULL, " "));
+
+			//apro il file per saperne la lunghezza:
+			printf("@@@ %s\n", filename);
+			int fdtemp = open(filename, O_RDONLY, 0666);
+			if (fdtemp == -1){
+				printf("open() error while checking file length.\n");
+				exit(-1);
+			}
+			file_len = lseek(fdtemp, 0, SEEK_END);
+			close(fdtemp);
+
+			char file_len_str[17]; //16 cifre circa 2^54 bytes
+			bzero(file_len_str, sizeof(file_len_str));
+			sprintf(file_len_str, "%d", file_len);
+		/**/printf("controllo correttezza file len %s\n", file_len_str);
+
+			strcat(cmd, " ");
+			strcat(cmd, file_len_str);
+
+			ret = sendto(socket_fd, cmd, sizeof(cmd), 0, (SA *) &server_addr, server_addr_len);
 			if (ret == -1){
 				printf("sendto() error while sending put command to server.\n");
 				exit(-1);
 			}
+
+	///*
 put_insert:
 			//ricezione del permesso di put
 			bzero(buffer, BUFFER_SIZE);
@@ -292,22 +333,31 @@ put_insert:
 				}
 			}
 
-/**/		printf("controllo correttezza risposta server = %s\n", buffer);
+//		printf("controllo correttezza risposta server = %s\n", buffer);
 
-			//server non in funzione
-			if (atoi(buffer) == SERVICE_UNAVAILABLE){
-				printf("Server is out of service.\n");
-				kill(getpid(), SIGINT);
+			int code = atoi(buffer);
+
+			if (code!= OK){
+				//server non in funzione
+				if (code == SERVICE_UNAVAILABLE){
+					printf("Server is out of service.\n");
+					kill(getpid(), SIGINT);
+				}else if (code == NOT_ACCEPTABLE){
+					printf("Invalid updload.\n");
+					display();
+					goto command;
+				}else exit(-1);
 			}
-
+			/*
 			// stampo la lista dei filename presente nel file_list del client
-			int fdtemp = open("file_list.txt", O_RDONLY, 0666);
+			fdtemp = open("file_list.txt", O_RDONLY, 0666);
 			if (fdtemp == -1){
 				printf("open() error while trying to open file_list.txt");
 				kill(getpid(), SIGINT);
-			}
+			}*//*
 
 			int no_bytes_read = lseek(fd, 0, SEEK_END);
+
 			file_list_buffer = (char *) malloc(no_bytes_read * sizeof(char));
 			if (file_list_buffer == NULL){
 				printf("malloc error.\n");
@@ -321,11 +371,15 @@ put_insert:
 			}
 			printf("List of available files in client:\n%s\n", file_list_buffer);
 			//close(fdtemp);
-			printf("Please insert file to be updated...\n");
-			fd = file_to_send();
+			printf("Please insert file to be updated...\n"); */
+			
+			//fd = file_to_send(); //????????
+
+			num_pkt = ceil(file_len/PAYLOAD);
+			
 			printf("Starting file upload...\n");
 
-			//SONO ARRIVATO QUI 18:45 29/02/2020 in clientUDP.c 
+			
 			//start_sending_pckt(fd);
 
 			// invio dei pacchetti
@@ -341,6 +395,13 @@ put_insert:
 				exit(-1);
 			}
 
+			fd = open(filename, O_RDONLY, 0666);{
+				if (fd == -1){
+					printf("open error while reading file.\n");
+					exit(-1);
+				}
+			}
+			/* LOGICA DEI PACCHETTI */
 			for(int i=0; i<num_pkt; i++){
 				bzero(temp_payload, PAYLOAD);
 				ret = read(fd, temp_payload, PAYLOAD);
@@ -383,6 +444,9 @@ put_insert:
 				}
 			}
 
+			/* FINE LOGICA DEI PACCHETTI */
+
+			display();
 		}
 
 
