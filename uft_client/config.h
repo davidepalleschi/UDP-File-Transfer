@@ -5,6 +5,8 @@
 #define ADDRESS "127.0.0.1"
 #define SA struct sockaddr
 
+#define DIRECTORY "./file_client/"
+
 #define BUFFER_SIZE 50
 #define NAME_LEN 128
 

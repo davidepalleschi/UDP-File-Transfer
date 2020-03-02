@@ -144,7 +144,7 @@ list:		// preparo il buffer in ricezione
 				exit(-1);
 			}
 
-			printf("List of available files:\n%s\n", buffer);
+			printf("\nList of available files:\n%s\n", buffer);
 			display();
 		}else 
 
@@ -295,11 +295,12 @@ sen:
 
 			strtok(cmd, " ");
 			strcpy(filename, strtok(NULL, ""));
-		
+			char file[30]= DIRECTORY;
+			strcat(file,filename);
 		
 
 			//apro il file per saperne la lunghezza
-			int fdtemp = open(filename, O_RDONLY, 0666);
+			int fdtemp = open(file, O_RDONLY, 0666);
 			if (fdtemp == -1){
 				printf("open() error while checking file length.\n");
 				exit(-1);
