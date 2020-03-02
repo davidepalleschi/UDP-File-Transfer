@@ -31,6 +31,7 @@
 #include<dirent.h>
 
 /* defines */
+#define DIRECTORY "./file_server/"
 #define PORT 1024
 #define SA struct sockaddr
 #define MAX_CLIENTS 20
@@ -53,84 +54,15 @@ int num_client = 0;
 void interrupt_handler(int, siginfo_t *, void *);
 void child_death_handler(int, siginfo_t* , void* );
 
-int create_socket(int s_port){
-    struct sockaddr_in server_addr;
-    //creazione socket
-    socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (socket_fd == -1){
-        printf("\nSocket %d creation failed.\n",s_port);
-    }else {
-        printf("\nSocket %d created succesfully.\n",s_port);
-    }
-    //flush della memoria per la struttura della socket
-    bzero(&server_addr, sizeof(server_addr));
+int create_socket(int s_port);
+char* dirfile();
+char* ispresent(char* file_name);
 
-    //assegnazione di indirizzo IP e porta della socket lato server
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    server_addr.sin_port = htons(s_port);
-
-    //binding
-    if (bind(socket_fd, (SA *) (&server_addr), sizeof(server_addr)) == -1){
-        printf("Binding failed.\n");
-    }else{
-        printf("Binding success.√\n");
-    }
-    return socket_fd;
-}
-
-char* dirfile(char* buffer){
-    DIR *dir;
-    struct dirent *ent;
-    if ((dir = opendir ("./file_server/")) != NULL) {
-    while ((ent = readdir (dir)) != NULL) {
-        if(strcmp(ent->d_name,".") != 0 + strcmp(ent->d_name,"..") != 0 == 0){
-            strcat(buffer,ent->d_name);
-            strcat(buffer,"\n");
-        }
-    }
-    closedir (dir);
-}   else {
-    /* could not open directory */
-    strcat(buffer,"ERROR");
-}
-return buffer;
-}
+void cmd_list(int socket_fd, struct sockaddr_in client_addr);
+void cmd_corr(char * file_name, int socket_fd, struct sockaddr_in client_addr);
+void cmd_send_packets(char* file_name,int socket_fd, struct sockaddr_in client_addr);
 
 
-char* ispresent(char* curr){
-    char file[30]="./file_server/";
-    char* filep=file;
-    char ok[50]="200 ";
-    strcat(filep,curr);
-    int fd=open(file,O_RDONLY, 0666);
-    int size=lseek(fd,0,SEEK_END);
-    char sizestr[25];
-    bzero(sizestr,sizeof(sizestr));
-    if(fd==-1){
-        return "404";
-    }
-    else{
-        sprintf(sizestr,"%d",size);
-        return strcat(ok  , sizestr);
-    }
-    lseek(fd,0,SEEK_SET);
-    close(fd);
-}
-
-void cmd_list(int socket_fd, struct sockaddr_in client_addr){
-    char buffer[50];
-    int len=sizeof(client_addr);
-    bzero(buffer,BUFFER_SIZE);
-    dirfile(buffer);
-    sendto(socket_fd, buffer, BUFFER_SIZE , 0, (SA *) &client_addr, len);
-}
-
-void cmd_corr(char * buffer, int socket_fd, struct sockaddr_in client_addr){
-    int len=sizeof(client_addr);
-    sendto(socket_fd, ispresent(buffer), 50 , 0, (SA *) &client_addr, len); //Invio la presenza o meno del file
-
-}
 
 
 
@@ -243,11 +175,13 @@ int main(int argc, char **argv){
 						printf("Sto processando la richiesta di download del client collegato alla porta: %d.\n", client_port);
                         token=strtok(NULL,"");
                         cmd_corr(token,socket_fd_child,client_addr);
+                        cmd_send_packets(token,socket_fd_child,client_addr);
                         }
                     	
 	
-					if(strcmp("put", buffer) == 0){
+					if(strcmp("put", token) == 0){
 						printf("Sto processando la richiesta di upload del client collegato alla porta: %d.\n", client_port);
+                        token=strtok(NULL,"");
                         sendto(socket_fd_child, "Upload da implementare", 23 , 0, (SA *) &client_addr, len);
 					}
                 }
@@ -275,4 +209,89 @@ void interrupt_handler(int signo, siginfo_t *a, void *b){
 
 void child_death_handler(int signo, siginfo_t *a, void *b){
     num_client--;
+}
+
+int create_socket(int s_port){
+    struct sockaddr_in server_addr;
+    //creazione socket
+    socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (socket_fd == -1){
+        printf("\nSocket %d creation failed.\n",s_port);
+    }else {
+        printf("\nSocket %d created succesfully.\n",s_port);
+    }
+    //flush della memoria per la struttura della socket
+    bzero(&server_addr, sizeof(server_addr));
+
+    //assegnazione di indirizzo IP e porta della socket lato server
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_addr.sin_port = htons(s_port);
+
+    //binding
+    if (bind(socket_fd, (SA *) (&server_addr), sizeof(server_addr)) == -1){
+        printf("Binding failed.\n");
+    }else{
+        printf("Binding success.√\n");
+    }
+    return socket_fd;
+}
+
+char* dirfile(){
+    char buffer[50];
+    bzero(buffer,sizeof(buffer));
+    DIR *dir;
+    struct dirent *ent;
+    if ((dir = opendir (DIRECTORY)) != NULL) {
+    while ((ent = readdir (dir)) != NULL) {
+        if(strcmp(ent->d_name,".") != 0 + strcmp(ent->d_name,"..") != 0 == 0){
+            strcat(buffer,ent->d_name);
+            strcat(buffer,"\n");
+        }
+    }
+    return strcat(buffer,"");
+    closedir (dir);
+}   else {
+    /* could not open directory */
+    return strcat(buffer,"ERROR");
+}
+}
+
+
+char* ispresent(char* file_name){
+    char file[30]= DIRECTORY;
+    char ok[50]="200 ";
+    char sizestr[25];
+
+    strcat(file,file_name);
+
+    int fd=open(file,O_RDONLY, 0666);
+    int size=lseek(fd,0,SEEK_END);
+    
+    bzero(sizestr,sizeof(sizestr));
+    sprintf(sizestr,"%d",size);
+    if(fd==-1){
+        return "404";
+    }
+    else{
+        return strcat(ok  , sizestr);
+    }
+    close(fd);
+}
+
+void cmd_list(int socket_fd, struct sockaddr_in client_addr){
+    char buffer[50];
+    int len=sizeof(client_addr);
+    bzero(buffer,BUFFER_SIZE);
+    sendto(socket_fd, dirfile() , BUFFER_SIZE , 0, (SA *) &client_addr, len);
+}
+
+void cmd_corr(char * file_name, int socket_fd, struct sockaddr_in client_addr){
+    int len=sizeof(client_addr);
+    sendto(socket_fd, ispresent(file_name), 50 , 0, (SA *) &client_addr, len);
+}
+
+void cmd_send_packets(char* file_name,int socket_fd, struct sockaddr_in client_addr){
+    int len=sizeof(client_addr);
+    
 }

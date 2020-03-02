@@ -2,15 +2,19 @@
 #define _CONFIG_H
 
 #define PORT 1024 
+#define ADDRESS "127.0.0.1"
 #define SA struct sockaddr
+
 #define BUFFER_SIZE 50
 #define NAME_LEN 128
+
 #define OK 200
 #define BAD_REQUEST 400
 #define NOT_FOUND 404
 #define NOT_ACCEPTABLE 406
 #define SERVICE_UNAVAILABLE 503
-#define ADDRESS "127.0.0.1"
+
+
 #define PAYLOAD 1024
 #define TX_WINDOW 3
 #define TIMER 300000
