@@ -253,7 +253,10 @@ sen:
 
 			//creazione file
 			printf("Creating file %s...\n", filename);
-			fd = open(filename, O_CREAT | O_RDWR | O_TRUNC, 0666);
+			bzero(buffer,BUFFER_SIZE);
+			sprintf(buffer,"%s","./file_client/");
+			strcat(buffer,filename);
+			fd = open(buffer, O_CREAT | O_RDWR | O_TRUNC, 0666);
 			if (fd == -1){
 				printf("open() error while creating file\n");
 				exit(-1);

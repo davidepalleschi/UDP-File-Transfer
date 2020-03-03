@@ -22,6 +22,8 @@
 #include<pthread.h>
 #include<errno.h>
 #include<dirent.h>
+#include<math.h>
+#include<time.h>
 
 
 #endif

@@ -12,6 +12,7 @@
 #include "../inc/func.h"
 #include "../inc/interrupt.h"
 #include "../inc/cmd.h"
+#include "../inc/types.h"
 
 
 int socket_fd;
