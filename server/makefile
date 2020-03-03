@@ -2,7 +2,7 @@
 TARGET=bin/main
 
 ## ADD HERE OBJECT FILES: e.g. bin/class.o
-OBJECTS= $(TARGET).o bin/func.o
+OBJECTS= $(TARGET).o bin/cmd.o bin/func.o bin/interrupt.o
 
 # -------- Compiler --------
 CC=gcc

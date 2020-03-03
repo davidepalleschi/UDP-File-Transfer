@@ -1,23 +1,11 @@
 #include "../inc/func.h"
-#include "../inc/libraries.h"
-#include"../inc/config.h"
+
 
 extern int socket_fd;
 extern int num_client;
 
 
 
-
-void interrupt_handler(int signo, siginfo_t *a, void *b){
-
-    close(socket_fd);
-    exit(0);
-
-}
-
-void child_death_handler(int signo, siginfo_t *a, void *b){
-    num_client--;
-}
 
 int create_socket(int s_port){
     struct sockaddr_in server_addr;
@@ -88,29 +76,4 @@ char* ispresent(char* file_name){
     close(fd);
 }
 
-void cmd_list(int socket_fd, struct sockaddr_in client_addr){
-    char buffer[50];
-    int len=sizeof(client_addr);
-    bzero(buffer,BUFFER_SIZE);
-    sendto(socket_fd, dirfile() , BUFFER_SIZE , 0, (SA *) &client_addr, len);
-}
 
-void cmd_corr(char * file_name, int socket_fd, struct sockaddr_in client_addr){
-    int len=sizeof(client_addr);
-    sendto(socket_fd, ispresent(file_name), 50 , 0, (SA *) &client_addr, len);
-}
-
-void cmd_corr_put(char* file_size,int socket_fd, struct sockaddr_in client_addr){
-    int len=sizeof(client_addr);
-    if (atoi(file_size)>20000000){
-        sendto(socket_fd, "406", 3 , 0, (SA *) &client_addr, len);
-    }
-    else{
-        sendto(socket_fd, "200", 3 , 0, (SA *) &client_addr, len);
-    }
-}
-
-void cmd_recv_packets(char* file_name,int socket_fd, struct sockaddr_in client_addr){
-    int len=sizeof(client_addr);
-    
-}

@@ -10,6 +10,9 @@
 #include "../inc/libraries.h"
 #include"../inc/config.h"
 #include "../inc/func.h"
+#include "../inc/interrupt.h"
+#include "../inc/cmd.h"
+
 
 int socket_fd;
 int num_client = 0;
