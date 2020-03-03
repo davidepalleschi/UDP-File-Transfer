@@ -57,7 +57,7 @@ int main(int argc, char **argv){
 
     /* Inizializzazione socket */
 
-    printf("Start Server\n");
+    printf("\nStart Server\n");
 
     socket_fd=create_socket(PORT);
 
@@ -91,7 +91,6 @@ int main(int argc, char **argv){
             printf("Fork error while creating process for new client");
         }
         if(pid==0){
-            //gestione segnali TODO
             signal(SIGCHLD,SIG_IGN);
             int socket_fd_child= create_socket(client_port);
             printf("Numero Clienti: %d\n\n",num_client);
@@ -100,28 +99,27 @@ int main(int argc, char **argv){
             while (1){
                 bzero(buffer,BUFFER_SIZE);
                 recvfrom(socket_fd_child, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
-                char tok[50];
-                char* token=tok;
+                char token[50];
                 char size[50];
-                char* sizep=size;
-                token=strtok(buffer," ");
+                strcpy(token,strtok(buffer," "));
                 if(strcmp("list", token) == 0){
                     printf("Sto processando la richiesta di list del client collegato alla porta: %d.\n", client_port);
                     cmd_list(socket_fd_child,client_addr);
                 }
                 else if(strcmp("get", token) == 0){
 					printf("Sto processando la richiesta di download del client collegato alla porta: %d.\n", client_port);
-                    token=strtok(NULL,"");
+                    strcpy(token,strtok(NULL,""));
                     cmd_corr(token,socket_fd_child,client_addr);
                     //cmd_send_packets(token,socket_fd_child,client_addr);
                     }
                 	
 	            else if(strcmp("put", token) == 0){
 					printf("Sto processando la richiesta di upload del client collegato alla porta: %d.\n", client_port);
-                    token=strtok(NULL," ");
-                    sizep=strtok(NULL,"");
-                    cmd_corr_put(sizep,socket_fd_child,client_addr);
-                    //cmd_recv_packets(token,socket_fd_child,client_addr);
+                    strcpy(token,strtok(NULL," "));
+                    strcpy(size,strtok(NULL,""));
+                    cmd_corr_put(size,socket_fd_child,client_addr);
+                    printf("Sto ricevendo sulla porta %d:\nNome file: %s\nDim File: %s\n",client_port,token,size);
+                    cmd_recv_packets(token,size,socket_fd_child,client_addr);
 				}
                 else if(strcmp("exit", token) == 0){
                     printf("Client su porta %d uscito\n\n",client_port);

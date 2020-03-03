@@ -5,7 +5,7 @@
 
 typedef struct _packet_form{
 	int counter;
-	char buf[BUFFER_SIZE];
+	char payload[PAYLOAD];
 	int ack;
 } packet_form;
 
