@@ -4,7 +4,7 @@
 #define DIRECTORY "./file_server/"
 #define PORT 1024
 #define SA struct sockaddr
-#define MAX_CLIENTS 20
+#define MAX_CLIENTS 10
 #define BUFFER_SIZE 50
 #define NOT_FOUND 404
 #define BAD_REQUEST 400
