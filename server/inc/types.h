@@ -8,7 +8,9 @@ typedef struct _packet_form{
 
 	char payload[PAYLOAD];
 
-	int ver;
+	int recv;
+
+	int checked;
 
 	int ack;
 } packet_form;

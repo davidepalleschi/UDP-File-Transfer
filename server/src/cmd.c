@@ -66,12 +66,14 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
         for(int i=base;i<WINDOW+base;i++){
             if(prob_perdita(20)){
                 packet[i].seq=i;
-                packet[i].ver=1;
+                packet[i].recv=1;
                 }
             printf("iteratore: %d\n",i);
             printf("num pak: %d\n",packet[i].seq);
-            if(packet[i].ver==1){
+            printf("counter %d\n",counter);
+            if(packet[i].recv==1 && packet[i].checked==0 ){
                 counter++;
+                packet[i].checked=1;
             }
             //recvfrom(socket_fd_child, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
             //strcpy(packet[i].seq,atoi(strtok(buffer," ")));
