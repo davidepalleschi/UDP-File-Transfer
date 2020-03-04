@@ -1,6 +1,8 @@
 #include "../inc/cmd.h"
 #include "../inc/types.h"
 #include "../inc/func.h"
+#include "../inc/libraries.h"
+#include "../inc/config.h"
 
 int cmd_send_port(int socket_fd, struct sockaddr_in client_addr, int free_port[]){
     char buffer[BUFFER_SIZE];
@@ -54,38 +56,54 @@ void cmd_corr_put(char* file_size,int socket_fd, struct sockaddr_in client_addr)
 
 void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct sockaddr_in client_addr){
     srand(time(NULL));
+    char buffer[BUFFER_SIZE];
+    bzero(buffer,sizeof(buffer));
+    char seq[64];
+    bzero(seq,sizeof(seq));
     int len=sizeof(client_addr);
-    int fd = open(file_name, O_CREAT | O_RDWR | O_TRUNC, 0666);
-    int base=0;
+    strcpy(buffer,DIRECTORY);
+    strcat(buffer,file_name);
+    int fd = open(buffer, O_CREAT | O_RDWR | O_TRUNC, 0666);
     int num_pkt=ceil((atoi(file_size)/PAYLOAD));
+    int base=0;
     int counter=0;
     packet_form packet[num_pkt];
+    for(int i=0; i<num_pkt;i++){
+        packet[i].seq=0;
+        packet[i].recv=0;
+        packet[i].checked=0;
+    }
     printf("numero pacchetti: %d\n",num_pkt);
     printf("pacchetto %d: %d\n",num_pkt-1,packet[num_pkt-1].seq);
-    while(counter<num_pkt){
-        for(int i=base;i<WINDOW+base;i++){
+    while(counter < num_pkt){
+        for(int i=base ;i<WINDOW+base ; i++){
+            rec:
+            bzero(buffer,sizeof(buffer));
+            printf("Sto aspettando il pacchetto...\n");
+            recvfrom(socket_fd, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
             if(prob_perdita(20)){
-                packet[i].seq=i;
-                packet[i].recv=1;
+                printf("Il pacchetto %s è stato perso\n",strtok(buffer," "));
+                goto rec;
                 }
-            printf("iteratore: %d\n",i);
-            printf("num pak: %d\n",packet[i].seq);
-            printf("counter %d\n",counter);
             if(packet[i].recv==1 && packet[i].checked==0 ){
                 counter++;
                 packet[i].checked=1;
             }
-            //recvfrom(socket_fd_child, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
-            //strcpy(packet[i].seq,atoi(strtok(buffer," ")));
-            //strcpy(packet[i].payload,strtok(NULL,""));
-            //sendto(socket_fd, sfprintf("%d",packet.counter), sizeof(sfprintf("%d",packet.counter)) , 0, (SA *) &client_addr, len);
-            if(packet[i].seq==base){
-                //write(fd,packet[i].payload,PAYLOAD);
+            strcpy(seq,strtok(buffer," "));
+            packet[i].seq=atoi(seq);
+            strcpy(packet[i].payload,strtok(NULL,""));
+            sendto(socket_fd, seq, sizeof(seq) , 0, (SA *) &client_addr, len);
+            if(packet[i].recv==1){
+                if(packet[i].seq==base){
+                    write(fd,packet[i].payload,PAYLOAD);
                 
-                if(!(WINDOW+base==num_pkt)){
-                    base++;
+                    if(!(WINDOW+base==num_pkt)){
+                        base++;
+                    }
                 }
             }
+            printf("num pak: %d recv: %d checked: %d\n",packet[i].seq, packet[i].recv,packet[i].checked);
+            printf("counter: %d\n",counter);
         }
         printf("Fine for ----------------------------------\n");
     }
