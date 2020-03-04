@@ -80,18 +80,25 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
             rec:
             bzero(buffer,sizeof(buffer));
             printf("Sto aspettando il pacchetto...\n");
+
             recvfrom(socket_fd, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
-            if(prob_perdita(20)){
+
+            strncpy(seq,buffer,64);
+            printf("Il pacchetto %s è arrivato\n",seq);
+            if(prob_perdita(100)){
                 printf("Il pacchetto %s è stato perso\n",strtok(buffer," "));
                 goto rec;
                 }
-            if(packet[i].recv==1 && packet[i].checked==0 ){
+            packet[i].recv=1;
+            if(packet[i].checked==0 ){
                 counter++;
                 packet[i].checked=1;
             }
-            strcpy(seq,strtok(buffer," "));
+            
             packet[i].seq=atoi(seq);
-            strcpy(packet[i].payload,strtok(NULL,""));
+            strcpy(packet[i].payload, buffer+64);
+            printf("Payload: %s\n",packet[i].payload);
+            fflush(stdout);
             sendto(socket_fd, seq, sizeof(seq) , 0, (SA *) &client_addr, len);
             if(packet[i].recv==1){
                 if(packet[i].seq==base){
@@ -108,5 +115,6 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
         printf("Fine for ----------------------------------\n");
     }
     printf("fine\n");
+    close(fd);
 }
 
