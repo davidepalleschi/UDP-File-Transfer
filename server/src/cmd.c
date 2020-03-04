@@ -75,6 +75,10 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
     }
     printf("numero pacchetti: %d\n",num_pkt);
     printf("pacchetto %d: %d\n",num_pkt-1,packet[num_pkt-1].seq);
+    int window=WINDOW;
+    if(num_pky<win){
+        window=num_pkt;
+    }
     while(counter < num_pkt){
         for(int i=base ;i<WINDOW+base ; i++){
             rec:
@@ -97,8 +101,8 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
             
             packet[i].seq=atoi(seq);
             strcpy(packet[i].payload, buffer+64);
-            printf("Payload: %s\n",packet[i].payload);
             fflush(stdout);
+            write(1,packet[i].payload);
             sendto(socket_fd, seq, sizeof(seq) , 0, (SA *) &client_addr, len);
             if(packet[i].recv==1){
                 if(packet[i].seq==base){
