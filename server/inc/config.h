@@ -14,6 +14,7 @@
 #define SERVICE_UNAVAILABLE 503
 
 #define PAYLOAD 1024
+#define WINDOW 8
 
 
 #endif

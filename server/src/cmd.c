@@ -1,4 +1,6 @@
 #include "../inc/cmd.h"
+#include "../inc/types.h"
+#include "../inc/func.h"
 
 int cmd_send_port(int socket_fd, struct sockaddr_in client_addr, int free_port[]){
     char buffer[BUFFER_SIZE];
@@ -51,8 +53,40 @@ void cmd_corr_put(char* file_size,int socket_fd, struct sockaddr_in client_addr)
 }
 
 void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct sockaddr_in client_addr){
+    srand(time(NULL));
     int len=sizeof(client_addr);
-    
-    
+    int fd = open(file_name, O_CREAT | O_RDWR | O_TRUNC, 0666);
+    int base=0;
+    int num_pkt=ceil((atoi(file_size)/PAYLOAD));
+    int counter=0;
+    packet_form packet[num_pkt];
+    printf("numero pacchetti: %d\n",num_pkt);
+    printf("pacchetto %d: %d\n",num_pkt-1,packet[num_pkt-1].seq);
+    while(counter<num_pkt){
+        for(int i=base;i<WINDOW+base;i++){
+            if(prob_perdita(20)){
+                packet[i].seq=i;
+                packet[i].ver=1;
+                }
+            printf("iteratore: %d\n",i);
+            printf("num pak: %d\n",packet[i].seq);
+            if(packet[i].ver==1){
+                counter++;
+            }
+            //recvfrom(socket_fd_child, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
+            //strcpy(packet[i].seq,atoi(strtok(buffer," ")));
+            //strcpy(packet[i].payload,strtok(NULL,""));
+            //sendto(socket_fd, sfprintf("%d",packet.counter), sizeof(sfprintf("%d",packet.counter)) , 0, (SA *) &client_addr, len);
+            if(packet[i].seq==base){
+                //write(fd,packet[i].payload,PAYLOAD);
+                
+                if(!(WINDOW+base==num_pkt)){
+                    base++;
+                }
+            }
+        }
+        printf("Fine for ----------------------------------\n");
+    }
+    printf("fine\n");
 }
 

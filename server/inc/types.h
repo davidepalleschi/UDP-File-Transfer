@@ -4,8 +4,12 @@
 #include "config.h"
 
 typedef struct _packet_form{
-	int counter;
+	int seq;
+
 	char payload[PAYLOAD];
+
+	int ver;
+
 	int ack;
 } packet_form;
 

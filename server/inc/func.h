@@ -8,6 +8,7 @@
 int create_socket(int s_port);
 char* dirfile();
 char* ispresent(char* file_name);
+int prob_perdita( int prob);
 
 
 #endif
