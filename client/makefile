@@ -1,8 +1,8 @@
 # -------- Variables --------
-TARGET=bin/client
+TARGET=bin/main
 
 ## ADD HERE OBJECT FILES: e.g. bin/class.o
-OBJECTS= $(TARGET).o
+OBJECTS= $(TARGET).o bin/threads.o bin/cmd.o bin/func.o bin/interrupt.o
 
 # -------- Compiler --------
 CC=gcc
@@ -17,7 +17,7 @@ bin/%.o : src/%.c
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(OBJECTS) -o $(TARGET)
+	$(CC) $(OBJECTS) -o $(TARGET) -lpthread
 
 # -------- Running --------
 run:

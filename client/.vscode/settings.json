@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "cmd.h": "c",
+        "libraries.h": "c",
+        "interrupt.h": "c",
+        "types.h": "c",
+        "semaphore.h": "c",
+        "pthread.h": "c"
+    }
+}

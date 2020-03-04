@@ -77,8 +77,8 @@ char* ispresent(char* file_name){
     close(fd);
 }
 
-int prob_perdita( int prob){
-    return random()%100<(100-prob);
+int prob( int prob){
+    return random()%100<prob;
 }
 
 

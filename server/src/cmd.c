@@ -80,7 +80,7 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
         window=num_pkt;
     }
     while(counter < num_pkt){
-        for(int i=base ;i<WINDOW+base ; i++){
+        for(int i=base ;i<window+base ; i++){
             rec:
             bzero(buffer,sizeof(buffer));
             printf("Sto aspettando il pacchetto...\n");
@@ -89,11 +89,10 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
 
             strncpy(seq,buffer,64);
             printf("Il pacchetto %s è arrivato\n",seq);
-            if(prob_perdita(100)){
+            if(prob(PROBABILITY_LOSS)){
                 printf("Il pacchetto %s è stato perso\n",strtok(buffer," "));
                 goto rec;
                 }
-            packet[i].recv=1;
             if(packet[i].checked==0 ){
                 counter++;
                 packet[i].checked=1;
@@ -101,8 +100,6 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
             
             packet[i].seq=atoi(seq);
             strcpy(packet[i].payload, buffer+64);
-            fflush(stdout);
-            write(1,packet[i].payload,PAYLOAD);
             sendto(socket_fd, seq, sizeof(seq) , 0, (SA *) &client_addr, len);
             if(packet[i].recv==1){
                 if(packet[i].seq==base){
@@ -113,12 +110,10 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
                     }
                 }
             }
-            printf("num pak: %d recv: %d checked: %d\n",packet[i].seq, packet[i].recv,packet[i].checked);
-            printf("counter: %d\n",counter);
         }
-        printf("Fine for ----------------------------------\n");
+        printf("---------------------------------------------------\n");
     }
-    printf("fine\n");
+    printf("File recived\n");
     close(fd);
 }
 
