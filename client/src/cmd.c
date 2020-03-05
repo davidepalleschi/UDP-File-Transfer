@@ -257,7 +257,7 @@ printf("@@@ All packets (%d) have been built and file is closed.\n", num_pkt);
 //if (counterACK < num_pkt){
                 
                 if (!(pkts[i] -> sent)){
-                    sendto(socket_fd, pkts[i] -> data, PAYLOAD, 0, (SA *) &server_addr, len);
+                    sendto(socket_fd, pkts[i] -> data, BUFFER_SIZE, 0, (SA *) &server_addr, len);
                     
                     pkts[i] -> sent = 1;
                     printf("@@@ Pkt %d transmitted.\n", i);
@@ -306,10 +306,10 @@ semaphore_commit:
                             "tempo di invio: %ld\ntempo attuale: %ld\n"
                             "tempo trascorso: %ld\ntimeout interval: %ld\n", 
                             i, pkts[i] -> time_start, time_stamp, diff, (long) TIMEOUT_INTERVAL);*/
-                    if (diff > (long) TIMEOUT_INTERVAL){
+                    if (diff > (long) TIMEOUT_INTERVAL){  
 
                         // RETRANSMISSION 
-                        sendto(socket_fd, pkts[i] -> data, PAYLOAD, 0, (SA *) &server_addr, len);
+                        sendto(socket_fd, pkts[i] -> data, BUFFER_SIZE, 0, (SA *) &server_addr, len);
                         printf("@@@ Pkt %d retransmitted.\n", i);
                         
                         

@@ -72,7 +72,7 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
     int counter=0;
     packet_form packet[num_pkt];
     for(int i=0; i<num_pkt;i++){
-        packet[i].seq=0;
+        packet[i].seq=i;
         packet[i].recv=0;
         packet[i].checked=0;
     }
@@ -84,29 +84,54 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
     }
     while(counter < num_pkt){
         
-            rec:
+rec:
+            if (counter == num_pkt) goto write_payload;
             bzero(buffer,sizeof(buffer));
-            printf("Sto aspettando il pacchetto...\n");
+            printf("Waiting for packets...\n");
 
             recvfrom(socket_fd, buffer, sizeof(buffer), 0, (SA *) &client_addr, &len);
 
             strncpy(seq,buffer,64);
-            printf("Il pacchetto %s è arrivato\n",seq);
-            if(prob(PROBABILITY_LOSS) || (atoi(seq) > window + base)){
-                printf("Il pacchetto %s è stato perso\n",strtok(buffer," "));
+            if(prob(PROBABILITY_LOSS)){
+                printf("Packet %d has been lost. (simulation)\n",atoi(seq));
                 goto rec;
             } 
-            if(packet[atoi(seq)].recv == 0 ){
+            if(atoi(seq) > window + base){
+                printf("Packet %d has been discarted. (out of window)\n", atoi(seq));
+                goto rec;
+            }
+
+            if(packet[atoi(seq)].recv){
+                printf("Packet %d has been discarted. (already captured it)\n", atoi(seq));
+                goto rec;
+            }
+
+            printf("Packet %d captured.\n", atoi(seq));
+
+            /*if(packet[atoi(seq)].recv == 0 ){
                 counter++;
                 packet[atoi(seq)].recv ++;
-            }  
+            } */
+
+            packet[atoi(seq)].recv ++;
+            packet[atoi(seq)].seq = atoi(seq);
+            counter ++;
+            sendto(socket_fd, seq, sizeof(seq), 0, (SA *) &client_addr, len);   // ack sending
+            if (atoi(seq) + 1 == num_pkt){  //if is the last packet
+                memcpy(packet[atoi(seq)].payload, buffer + 64, atoi(file_size)%counter);            // payload capturing
+
+            }else{
+                memcpy(packet[atoi(seq)].payload, buffer + 64, PAYLOAD);            // payload capturing
+            }
             
+            /*
             //strcpy(packet[i].payload, buffer+64);                             //@@@ no
             memcpy(packet[atoi(seq)].payload, buffer + 64, PAYLOAD);            //@@@ si
        // printf("\n\n\n"); fflush(stdout); write(STDOUT_FILENO, packet[i].payload, BUFFER_SIZE); printf("\n\n\n");
             sendto(socket_fd, seq, sizeof(seq) , 0, (SA *) &client_addr, len);
+            */
 
-            for(int i=base; i<base + window; i++){
+            /*for(int i=base; i<base + window; i++){
                 if (packet[i].recv){
                     if (packet[i].seq == base){
                         // se bisogna togliere la printf qui sotto va lasciata l'istruzione di write
@@ -114,6 +139,20 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
                         base ++;
                     }
                 }
+            }*/ 
+write_payload: 
+            for(int i=base; i<base+window; i++){
+                printf("\n##### BASE = %d\n#### WINDOW =%d\n####BASE + WINDOW = %d\n####ALL PACKETS = %d\n\n", base, window, window+base, num_pkt);
+                if ((packet[i].recv) && (i == base)){ 
+                    if (packet[i].seq + 1 == num_pkt){      // if is the last packet
+                        printf("@@@ Il pacchetto %d ha scritto %ld bytes\n", i, write(fd, packet[i].payload, atoi(file_size)%counter));
+                    }else{
+                        printf("@@@ Il pacchetto %d ha scritto %ld bytes\n", i, write(fd, packet[i].payload, PAYLOAD));
+                    }
+
+                    base ++;
+                    if (base > num_pkt - window) window --;
+                } 
             }
 
             /*if(packet[atoi(seq)].recv == 1){
@@ -126,6 +165,7 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
             }*/
         
         printf("---------------------------------------------------\n");
+        printf("%d packets written on file.\n", base);
     }
     printf("File received\n");
     close(fd);
