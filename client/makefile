@@ -17,7 +17,7 @@ bin/%.o : src/%.c
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(OBJECTS) -o $(TARGET) -lpthread
+	$(CC) $(OBJECTS) -o $(TARGET) -lpthread -lm
 
 # -------- Running --------
 run:

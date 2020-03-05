@@ -6,6 +6,8 @@
 #include "../inc/func.h"
 #include "../inc/types.h"
 #include <pthread.h>
+#include <time.h>
+#include <sys/time.h>
 
 //void cmd_list(int socket_fd, struct sockaddr_in client_addr);
 void cmd_corr(char * file_name, int socket_fd, struct sockaddr_in client_addr);

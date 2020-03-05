@@ -22,7 +22,8 @@ typedef struct _packet_man{
 	int ack_checked;
 
 	//timestamp
-	//timestamp send_time;
+	struct timeval initial;
+	long time_start;
 
 } packet_man;
 

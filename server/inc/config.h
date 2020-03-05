@@ -15,7 +15,7 @@
 #define BUFFER_SIZE 1088
 #define PAYLOAD 1024
 #define WINDOW 8
-#define PROBABILITY_LOSS 0
+#define PROBABILITY_LOSS 20
 
 
 #endif

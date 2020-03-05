@@ -9,6 +9,8 @@
 #define TX_WINDOW 8
 #define PAYLOAD 1024
 
+#define TIMEOUT_INTERVAL 1000000    // 1000000 microsec = 1 sec
+
 #define SA struct sockaddr
 
 #define MAX_CLIENTS 20

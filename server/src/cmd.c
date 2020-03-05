@@ -32,7 +32,7 @@ int cmd_send_port(int socket_fd, struct sockaddr_in client_addr, int free_port[]
 }
 
 void cmd_list(int socket_fd, struct sockaddr_in client_addr){
-    char buffer[50];
+    char buffer[BUFFER_SIZE];   // @@@ no 50 si BUFFER_SIZE
     int len=sizeof(client_addr);
     bzero(buffer,BUFFER_SIZE);
     strcpy(buffer,"200 ");
@@ -64,7 +64,10 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
     strcpy(buffer,DIRECTORY);
     strcat(buffer,file_name);
     int fd = open(buffer, O_CREAT | O_RDWR | O_TRUNC, 0666);
-    int num_pkt=ceil((atoi(file_size)/PAYLOAD));
+    if (fd == -1){
+        printf("Server couldn't open %s.\n", buffer);
+    }
+    int num_pkt=ceilf((float)(atoi(file_size)/(float)PAYLOAD)); //@@@ no ceil si ceilf e aggiunto casting a float
     int base=0;
     int counter=0;
     packet_form packet[num_pkt];
@@ -80,7 +83,7 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
         window=num_pkt;
     }
     while(counter < num_pkt){
-        for(int i=base ;i<window+base ; i++){
+        
             rec:
             bzero(buffer,sizeof(buffer));
             printf("Sto aspettando il pacchetto...\n");
@@ -89,31 +92,42 @@ void cmd_recv_packets(char* file_name,char* file_size ,int socket_fd, struct soc
 
             strncpy(seq,buffer,64);
             printf("Il pacchetto %s è arrivato\n",seq);
-            if(prob(PROBABILITY_LOSS)){
+            if(prob(PROBABILITY_LOSS) || (atoi(seq) > window + base)){
                 printf("Il pacchetto %s è stato perso\n",strtok(buffer," "));
                 goto rec;
-                }
-            if(packet[i].checked==0 ){
+            } 
+            if(packet[atoi(seq)].recv == 0 ){
                 counter++;
-                packet[i].checked=1;
-            }
+                packet[atoi(seq)].recv ++;
+            }  
             
-            packet[i].seq=atoi(seq);
-            strcpy(packet[i].payload, buffer+64);
+            //strcpy(packet[i].payload, buffer+64);                             //@@@ no
+            memcpy(packet[atoi(seq)].payload, buffer + 64, PAYLOAD);            //@@@ si
+       // printf("\n\n\n"); fflush(stdout); write(STDOUT_FILENO, packet[i].payload, BUFFER_SIZE); printf("\n\n\n");
             sendto(socket_fd, seq, sizeof(seq) , 0, (SA *) &client_addr, len);
-            if(packet[i].recv==1){
-                if(packet[i].seq==base){
-                    write(fd,packet[i].payload,PAYLOAD);
-                
-                    if(!(WINDOW+base==num_pkt)){
-                        base++;
+
+            for(int i=base; i<base + window; i++){
+                if (packet[i].recv){
+                    if (packet[i].seq == base){
+                        // se bisogna togliere la printf qui sotto va lasciata l'istruzione di write
+                        printf("@@@ byte scritti dal pkt %d al file %ld\n", i, write(fd, packet[i].payload, PAYLOAD));
+                        base ++;
                     }
                 }
             }
-        }
+
+            /*if(packet[atoi(seq)].recv == 1){
+                if(atoi(seq)==base){
+                    // se bisogna togliere la printf qui sotto va lasciata l'istruzione di write
+                    printf("@@@byte scritti dal pkt %d al file %ld\n", atoi(seq), write(fd,packet[atoi(seq)].payload,PAYLOAD));
+                    //if (base < num_pkt - window) base ++;
+                    base++;
+                }
+            }*/
+        
         printf("---------------------------------------------------\n");
     }
-    printf("File recived\n");
+    printf("File received\n");
     close(fd);
 }
 

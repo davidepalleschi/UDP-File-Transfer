@@ -1,5 +1,8 @@
 #include "../inc/cmd.h"
 #include "../inc/threads.h"
+
+#include <time.h>
+#include <sys/time.h>
 #include <pthread.h>
 
 int num_pkt;
@@ -70,7 +73,7 @@ void cmd_put(int socket_fd, char *buffer, struct sockaddr_in server_addr, int le
     // infos on uploading file
     char filename[128];
     int file_len; char str_file_len[17]; // 10 cifre circa 1 GB
-    char path[30] = DIRECTORY;
+    char path[200] = DIRECTORY;
     int temp_fd;
 
     // code status from server variables
@@ -89,7 +92,10 @@ void cmd_put(int socket_fd, char *buffer, struct sockaddr_in server_addr, int le
     // get filename from user input
 	strcpy(filename, strtok(NULL, "\0"));
     // get pathname
-	strcat(path, filename);
+    printf("§§§§§§§ %s\n", filename);
+    snprintf(path, 200, "%s%s", DIRECTORY, filename);
+	//strcat(path, filename);
+    printf("§§§§§§§ %s\n", filename);
 
 printf("@@@ Path is %s\n", path);
 
@@ -111,7 +117,7 @@ printf("@@@ Path is %s\n", path);
 
     // buffer rebuilt, actual value = "put"
     strcat(buffer, " ");
-    // buffer rebuilt, actual value = "put "
+    // buffer rebuilt, actual value = "put " 
     strcat(buffer, filename);
     // buffer rebuilt, actual value = "put file_name"
     strcat(buffer, " ");
@@ -165,7 +171,7 @@ printf("@@@ buffer contains %s: \n", buffer);
     }
 
     // calculate number of packets needed
-    num_pkt = ceil(file_len / PAYLOAD);
+    num_pkt = ceilf((float)file_len / (float)PAYLOAD);
     printf("@@@ file_len = %d\n    payload = %d\n    num_pkt = ceil(%d/%d) = %d\n", file_len, PAYLOAD, file_len, PAYLOAD, num_pkt);
 
     // open file to copy bytes in payload
@@ -211,8 +217,9 @@ printf("@@@ buffer contains %s: \n", buffer);
 
         bzero(pkts[i] -> data, BUFFER_SIZE);
         snprintf(pkts[i] -> data, 64, "%d", pkts[i] -> seq);
-        snprintf((pkts[i] -> data) + 64, PAYLOAD, "%s", pkts[i] -> payload);
-        write(STDOUT_FILENO, pkts[i] -> payload, BUFFER_SIZE);printf("\n");
+        //snprintf((pkts[i] -> data) + 64, PAYLOAD, "%s", pkts[i] -> payload);
+        memcpy((pkts[i] -> data) + 64, pkts[i] -> payload, PAYLOAD);
+        //write(STDOUT_FILENO, pkts[i] -> payload, BUFFER_SIZE);printf("\n");
 
 //printf("\n\n\n@@@@@@"); fflush(stdout); write(STDOUT_FILENO, pkts[i] -> data, BUFFER_SIZE); printf("\n\n\n");
     }
@@ -236,17 +243,30 @@ printf("@@@ All packets (%d) have been built and file is closed.\n", num_pkt);
         int window = TX_WINDOW;
         if (num_pkt < window) window = num_pkt;
 
-        //                                          base          (num_pkt-TX_WINDOW)    num_pkt
+        struct timeval final;
+        long time_stamp;
+
+
+        //                                   base          (num_pkt-TX_WINDOW)    num_pkt
         while (counterACK < num_pkt){ //      |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|
 
-printf("@@@ Number of ACK received %d.\n", counterACK);
+//printf("@@@ Number of ACK received %d.\n", counterACK);
 
             for(int i=base; i<base+window; i++){ //   base    i       base+TX_WINDOW
                                                     //    |_|_|_|_|_|_|_|_|_|_|
+//if (counterACK < num_pkt){
                 
                 if (!(pkts[i] -> sent)){
                     sendto(socket_fd, pkts[i] -> data, PAYLOAD, 0, (SA *) &server_addr, len);
                     
+                    pkts[i] -> sent = 1;
+                    printf("@@@ Pkt %d transmitted.\n", i);
+
+                    // setting pkt starting time    (measure unit is microsec)
+                    gettimeofday(&(pkts[i] -> initial), NULL);
+                    pkts[i] -> time_start = (((long)((pkts[i] -> initial).tv_sec))*1000000) +                          
+                                                (long)((pkts[i] -> initial).tv_usec);
+                     
                     oper.sem_num = 0;
                     oper.sem_op = 1;
                     oper.sem_flg = 0;
@@ -262,8 +282,6 @@ semaphore_commit:
                         }
                     }
 
-                    pkts[i] -> sent = 1;
-                    printf("@@@ Pkt %d sent.\n", i);
                 }
 
                 // if main_thread receives ACK of base window packet then transmission window will slide
@@ -276,16 +294,42 @@ semaphore_commit:
                     if ((pkts[i] -> seq == base) && (base < num_pkt - window)){
                         base ++;
                     }
+                } else {// timemout interval check
+
+                    //actual timestamp
+                    gettimeofday(&final, NULL);
+                    time_stamp = ((long)(final.tv_sec) * 1000000) + (long)(final.tv_usec);
+ 
+                  //if (initial timestamp) + timeout > (actual timestamp)
+                    long diff = time_stamp - (pkts[i] -> time_start);
+                /*    printf("\nPkt %d\n"
+                            "tempo di invio: %ld\ntempo attuale: %ld\n"
+                            "tempo trascorso: %ld\ntimeout interval: %ld\n", 
+                            i, pkts[i] -> time_start, time_stamp, diff, (long) TIMEOUT_INTERVAL);*/
+                    if (diff > (long) TIMEOUT_INTERVAL){
+
+                        // RETRANSMISSION 
+                        sendto(socket_fd, pkts[i] -> data, PAYLOAD, 0, (SA *) &server_addr, len);
+                        printf("@@@ Pkt %d retransmitted.\n", i);
+                        
+                        
+                        // setting pkt starting time    (measure unit is microsec)
+                        gettimeofday(&(pkts[i] -> initial), NULL);
+                        pkts[i] -> time_start = (((double)((pkts[i] -> initial).tv_sec))*1000000) +                          
+                                                (double)((pkts[i] -> initial).tv_usec);
+
+                    }
+                 
                 }
                 
-                /* PER PROVARE SENZA SERVER FACCIO FINTA CHE CON PROBABILITA 80% NON RICEVO L'ACK
+                /* PER PROVARE SENZA SERVER FACCIO FINTA CHE CON PROBABILITA 20% NON RICEVO L'ACK
                 if (!(pkts[i] -> ack) && (prob_perdita(20))){
                     printf("@@@ ACK %d received.\n", i);
                     pkts[i] -> ack = 1;
                 }
                 */
+//} 
             }            
-
         }
     
 }

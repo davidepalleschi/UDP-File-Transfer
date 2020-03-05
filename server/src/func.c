@@ -77,7 +77,7 @@ char* ispresent(char* file_name){
     close(fd);
 }
 
-int prob( int prob){
+int prob(int prob){
     return random()%100<prob;
 }
 

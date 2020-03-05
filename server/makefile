@@ -11,13 +11,13 @@ CC=gcc
 
 # -------- Compiling --------
 bin/%.o : src/%.c
-	$(CC) -c $< -o $@
+	$(CC) -c $< -o  $@
 
 # -------- Linking --------
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(OBJECTS) -o $(TARGET)
+	$(CC) $(OBJECTS) -o $(TARGET) -lm
 
 # -------- Running --------
 run:
